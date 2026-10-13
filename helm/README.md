@@ -1,6 +1,6 @@
 # helm
 
-![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.2.0](https://img.shields.io/badge/AppVersion-0.2.0-informational?style=flat-square)
+![Version: 0.3.0-rc](https://img.shields.io/badge/Version-0.3.0--rc-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.3.0-rc](https://img.shields.io/badge/AppVersion-0.3.0--rc-informational?style=flat-square)
 
 A Helm chart to deploy toolmesh.
 
@@ -23,7 +23,7 @@ Kubernetes: `>=1.25.0-0`
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
-| env | object | `{}` |  |
+| env | object | `{}` | Extra environment variables for the backend (override the ones derived from `oidc` / `mcpDatetime`). |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"ghcr.io/REPLACE_ME/toolmesh/backend"` | Container image repository for the backend service. |
 | image.tag | string | `"0.1.0"` | Image tag. Bumped automatically by the CD release workflow. |
@@ -32,7 +32,31 @@ Kubernetes: `>=1.25.0-0`
 | livenessProbe.httpGet.port | string | `"http"` |  |
 | livenessProbe.initialDelaySeconds | int | `10` |  |
 | livenessProbe.periodSeconds | int | `15` |  |
+| mcpDatetime.enabled | bool | `true` | Deploy the datetime MCP server. |
+| mcpDatetime.env | object | `{"MCP_DATETIME_OIDC_AUDIENCE":"mcp-datetime","MCP_DATETIME_OIDC_ISSUER":"https://keycloak.example.com/realms/toolmesh"}` | Environment variables (MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_JWKS_URL, MCP_DATETIME_OIDC_AUDIENCE...). |
+| mcpDatetime.image.pullPolicy | string | `"IfNotPresent"` |  |
+| mcpDatetime.image.repository | string | `"ghcr.io/REPLACE_ME/toolmesh/mcp-datetime"` |  |
+| mcpDatetime.image.tag | string | `""` | Image tag. Empty means `image.tag` (all images share the release version). |
+| mcpDatetime.ingress.annotations | object | `{}` |  |
+| mcpDatetime.ingress.className | string | `""` |  |
+| mcpDatetime.ingress.enabled | bool | `false` | Expose the MCP endpoint outside the cluster. |
+| mcpDatetime.ingress.host | string | `"mcp-datetime.example.com"` |  |
+| mcpDatetime.ingress.path | string | `"/"` |  |
+| mcpDatetime.ingress.pathType | string | `"Prefix"` |  |
+| mcpDatetime.ingress.tls | list | `[]` |  |
+| mcpDatetime.replicaCount | int | `1` |  |
+| mcpDatetime.resources | object | `{}` |  |
+| mcpDatetime.service.port | int | `8000` |  |
+| mcpDatetime.service.type | string | `"ClusterIP"` |  |
 | nodeSelector | object | `{}` |  |
+| oidc.audience | string | `"toolmesh"` | Audience the backend expects in incoming tokens. |
+| oidc.clientId | string | `"toolmesh"` | Confidential client allowed to do token exchange. |
+| oidc.clientSecret.existingSecret | string | `""` | Use an existing Secret instead of creating one. |
+| oidc.clientSecret.key | string | `"client-secret"` | Key of the secret value in the Secret. |
+| oidc.clientSecret.value | string | `""` | Secret value, used only when no existingSecret is given. |
+| oidc.issuer | string | `"https://keycloak.example.com/realms/toolmesh"` | Issuer, must match the `iss` claim of the tokens exactly. |
+| oidc.jwksUrl | string | `""` | JWKS URL if different from <issuer>/protocol/openid-connect/certs (e.g. in-cluster Keycloak address). |
+| oidc.tokenUrl | string | `""` | Token endpoint if different from <issuer>/protocol/openid-connect/token. |
 | readinessProbe.httpGet.path | string | `"/api/health"` |  |
 | readinessProbe.httpGet.port | string | `"http"` |  |
 | readinessProbe.initialDelaySeconds | int | `5` |  |
