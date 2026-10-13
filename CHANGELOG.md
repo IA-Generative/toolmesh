@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0-rc.1](https://github.com/IA-Generative/toolmesh/compare/v0.3.0-rc...v0.3.0-rc.1) (2026-10-13)
+
+
+### Bug Fixes
+
+* **mcp-datetime:** add HEALTHCHECK to the Dockerfile ([5d98c88](https://github.com/IA-Generative/toolmesh/commit/5d98c88d6554ad1ac54277d2e25e3a49de2d58d6))
+
 ## [0.3.0-rc](https://github.com/IA-Generative/toolmesh/compare/v0.2.0...v0.3.0-rc) (2026-10-13)
 
 
