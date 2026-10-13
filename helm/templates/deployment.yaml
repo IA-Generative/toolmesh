@@ -27,13 +27,34 @@ spec:
             - name: http
               containerPort: {{ .Values.service.port }}
               protocol: TCP
-          {{- with .Values.env }}
           env:
-            {{- range $key, $value := . }}
+            - name: TOOLMESH_OIDC_ISSUER
+              value: {{ .Values.oidc.issuer | quote }}
+            - name: TOOLMESH_OIDC_AUDIENCE
+              value: {{ .Values.oidc.audience | quote }}
+            {{- with .Values.oidc.jwksUrl }}
+            - name: TOOLMESH_OIDC_JWKS_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.oidc.tokenUrl }}
+            - name: TOOLMESH_OIDC_TOKEN_URL
+              value: {{ . | quote }}
+            {{- end }}
+            - name: TOOLMESH_OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            - name: TOOLMESH_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "helm.oidcSecretName" . }}
+                  key: {{ .Values.oidc.clientSecret.key }}
+            {{- if and .Values.mcpDatetime.enabled (not (hasKey .Values.env "TOOLMESH_MCP_DATETIME_URL")) }}
+            - name: TOOLMESH_MCP_DATETIME_URL
+              value: {{ printf "http://%s:%v/mcp" (include "helm.mcpDatetime.fullname" .) .Values.mcpDatetime.service.port | quote }}
+            {{- end }}
+            {{- range $key, $value := .Values.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          {{- end }}
           {{- with .Values.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

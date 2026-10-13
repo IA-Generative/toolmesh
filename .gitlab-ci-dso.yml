@@ -41,12 +41,10 @@ read_secret:
   rules:
     - when: always
 
-docker-build-backend:
+# One job per image: set SERVICE_NAME, DOCKERFILE and WORKING_DIR (see the jobs below).
+.docker-build-service:
   extends:
     - .docker-build-common
-  variables:
-    DOCKERFILE: "backend/Dockerfile"
-    WORKING_DIR: "backend"
   before_script:
     - |
       SHORT_SHA=$(echo $CI_COMMIT_SHA | cut -c1-7)
@@ -60,14 +58,30 @@ docker-build-backend:
         echo "Error: Could not extract appVersion from helm/Chart.yaml"
         exit 1
       fi
-      TAGS="toolmesh/backend:$SHORT_SHA"
-      TAGS="$TAGS toolmesh/backend:$CI_COMMIT_REF_SLUG"
-      TAGS="$TAGS toolmesh/backend:$APP_VERSION"
+      TAGS="toolmesh/$SERVICE_NAME:$SHORT_SHA"
+      TAGS="$TAGS toolmesh/$SERVICE_NAME:$CI_COMMIT_REF_SLUG"
+      TAGS="$TAGS toolmesh/$SERVICE_NAME:$APP_VERSION"
       if echo "$APP_VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-        TAGS="$TAGS toolmesh/backend:latest"
+        TAGS="$TAGS toolmesh/$SERVICE_NAME:latest"
       fi
       export IMAGE_NAMES="$TAGS"
       echo "Building with tags: $IMAGE_NAMES"
+
+docker-build-backend:
+  extends:
+    - .docker-build-service
+  variables:
+    SERVICE_NAME: "backend"
+    DOCKERFILE: "backend/Dockerfile"
+    WORKING_DIR: "backend"
+
+docker-build-mcp-datetime:
+  extends:
+    - .docker-build-service
+  variables:
+    SERVICE_NAME: "mcp-datetime"
+    DOCKERFILE: "mcp-datetime/Dockerfile"
+    WORKING_DIR: "mcp-datetime"
 
 # Inlined copy of the catalogue's `.helm:build-push` (helm-ci.yml) with its chart
 # detection fixed, so the fix can be exercised here before it is proposed upstream.
