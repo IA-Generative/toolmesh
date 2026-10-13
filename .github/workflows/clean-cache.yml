@@ -80,6 +80,7 @@ jobs:
                 pr: ${{ fromJSON(needs.list-closed-prs.outputs.prs) }}
                 service:
                     - backend
+                    - mcp-datetime
         with:
             IMAGE: ${{ needs.list-closed-prs.outputs.image-base }}/${{ matrix.service }}:pr-${{ matrix.pr.number }}
 
@@ -94,6 +95,7 @@ jobs:
             matrix:
                 service:
                     - backend
+                    - mcp-datetime
         with:
             IMAGE: ${{ needs.list-closed-prs.outputs.image-base }}/${{ matrix.service }}
             CLEAN_TAGGED: false

@@ -34,6 +34,7 @@ jobs:
             pull-requests: read
         outputs:
             backend: ${{ steps.filter.outputs.backend }}
+            mcp-datetime: ${{ steps.filter.outputs.mcp-datetime }}
             helm: ${{ steps.filter.outputs.helm }}
             ci: ${{ steps.filter.outputs.ci }}
             services: ${{ steps.services.outputs.services }}
@@ -48,6 +49,8 @@ jobs:
                   filters: |
                       backend:
                         - 'backend/**'
+                      mcp-datetime:
+                        - 'mcp-datetime/**'
                       helm:
                         - 'helm/**'
                         - 'ci/configs/ct.yaml'
@@ -58,6 +61,7 @@ jobs:
               id: services
               env:
                   BACKEND: ${{ steps.filter.outputs.backend }}
+                  MCP_DATETIME: ${{ steps.filter.outputs.mcp-datetime }}
                   CI: ${{ steps.filter.outputs.ci }}
               run: |
                   set -euo pipefail
@@ -67,6 +71,10 @@ jobs:
 
                   if [ "$BACKEND" = "true" ] || [ "$CI" = "true" ]; then
                     add '{"name":"backend","context":"backend","dockerfile":"backend/Dockerfile","target":"runtime"}'
+                  fi
+
+                  if [ "$MCP_DATETIME" = "true" ] || [ "$CI" = "true" ]; then
+                    add '{"name":"mcp-datetime","context":"mcp-datetime","dockerfile":"mcp-datetime/Dockerfile","target":"runtime"}'
                   fi
 
                   echo "Images to build: $SERVICES"
@@ -118,7 +126,7 @@ jobs:
         uses: ./.github/workflows/lint.yml
         needs:
             - path-filter
-        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.ci == 'true' }}
+        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.ci == 'true' }}
         permissions:
             contents: read
 
@@ -126,7 +134,7 @@ jobs:
         uses: ./.github/workflows/unit-tests.yml
         needs:
             - path-filter
-        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.ci == 'true' }}
+        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.ci == 'true' }}
         permissions:
             contents: read
 

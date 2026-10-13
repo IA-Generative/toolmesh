@@ -1,0 +1,36 @@
+[project]
+name = "toolmesh-mcp-datetime"
+version = "0.1.0"
+description = "Standalone MCP server for dates, times and periods"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=2.0",
+    "pydantic-settings>=2.7",
+    "pyjwt[crypto]>=2.10",
+    "tzdata>=2024.1",
+    "uvicorn>=0.54",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.15.0",
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]

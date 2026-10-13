@@ -1,0 +1,61 @@
+# Dev stack: Keycloak (realm auto-imported) + backend with hot reload.
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8080
+      KC_HTTP_ENABLED: "true"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./keycloak/toolmesh-realm.json:/opt/keycloak/data/import/toolmesh-realm.json:ro
+
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    environment:
+      TOOLMESH_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
+      TOOLMESH_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
+      TOOLMESH_OIDC_AUDIENCE: toolmesh
+      TOOLMESH_OIDC_TOKEN_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/token
+      TOOLMESH_DOWNSTREAM_URL: http://downstream:8000
+      TOOLMESH_MCP_DATETIME_URL: http://mcp-datetime:8000/mcp
+    ports:
+      - "${TOOLMESH_BACKEND_PORT:-8010}:8000"
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      - keycloak
+
+  # Mock downstream service: accepts only tokens with audience `downstream-service`.
+  downstream:
+    build:
+      context: ./backend
+      target: dev
+    command: ["uvicorn", "app.downstream:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    environment:
+      TOOLMESH_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
+      TOOLMESH_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
+      TOOLMESH_OIDC_AUDIENCE: downstream-service
+    ports:
+      - "8020:8000"
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      - keycloak
+
+  # Standalone MCP server (dates / periods), streamable HTTP on /mcp.
+  mcp-datetime:
+    build: ./mcp-datetime
+    environment:
+      MCP_DATETIME_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
+      MCP_DATETIME_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
+      MCP_DATETIME_OIDC_AUDIENCE: mcp-datetime
+    depends_on:
+      - keycloak
+    ports:
+      - "8030:8000"
