@@ -32,9 +32,30 @@ resources: {}
 #     cpu: 100m
 #     memory: 128Mi
 
+# -- Extra environment variables for the backend (override the ones derived from `oidc` / `mcpDatetime`).
 env: {}
 # env:
 #   LOG_LEVEL: info
+
+# OIDC (Keycloak) settings of the backend: token validation and token exchange towards downstream services.
+oidc:
+  # -- Issuer, must match the `iss` claim of the tokens exactly.
+  issuer: "https://keycloak.example.com/realms/toolmesh"
+  # -- Audience the backend expects in incoming tokens.
+  audience: "toolmesh"
+  # -- JWKS URL if different from <issuer>/protocol/openid-connect/certs (e.g. in-cluster Keycloak address).
+  jwksUrl: ""
+  # -- Token endpoint if different from <issuer>/protocol/openid-connect/token.
+  tokenUrl: ""
+  # -- Confidential client allowed to do token exchange.
+  clientId: "toolmesh"
+  clientSecret:
+    # -- Use an existing Secret instead of creating one.
+    existingSecret: ""
+    # -- Key of the secret value in the Secret.
+    key: client-secret
+    # -- Secret value, used only when no existingSecret is given.
+    value: ""
 
 livenessProbe:
   httpGet:
@@ -53,3 +74,34 @@ readinessProbe:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+# Standalone MCP server for dates and periods (see mcp-datetime/). Protected by a Keycloak token.
+mcpDatetime:
+  # -- Deploy the datetime MCP server.
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/REPLACE_ME/toolmesh/mcp-datetime
+    # -- Image tag. Empty means `image.tag` (all images share the release version).
+    tag: ""
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  # -- Environment variables (MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_JWKS_URL, MCP_DATETIME_OIDC_AUDIENCE...).
+  env:
+    MCP_DATETIME_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
+    MCP_DATETIME_OIDC_AUDIENCE: "mcp-datetime"
+  resources: {}
+  ingress:
+    # -- Expose the MCP endpoint outside the cluster.
+    enabled: false
+    className: ""
+    annotations: {}
+    host: mcp-datetime.example.com
+    path: /
+    pathType: Prefix
+    tls: []
+    # tls:
+    #   - secretName: mcp-datetime-tls
+    #     hosts: [mcp-datetime.example.com]

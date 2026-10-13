@@ -39,3 +39,22 @@ Selector labels.
 app.kubernetes.io/name: {{ include "helm.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Name and selector labels of the datetime MCP server.
+*/}}
+{{- define "helm.mcpDatetime.fullname" -}}
+{{- printf "%s-mcp-datetime" (include "helm.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- end }}
+
+{{- define "helm.mcpDatetime.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "helm.name" . }}-mcp-datetime
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Name of the Secret holding the OIDC client secret used for token exchange.
+*/}}
+{{- define "helm.oidcSecretName" -}}
+{{- default (printf "%s-oidc" (include "helm.fullname" .) | trunc 63 | trimSuffix "-") .Values.oidc.clientSecret.existingSecret }}
+{{- end }}
