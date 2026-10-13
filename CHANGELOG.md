@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0-rc](https://github.com/IA-Generative/toolmesh/compare/v0.2.0...v0.3.0-rc) (2026-10-13)
+
+
+### Features
+
+* add Keycloak authentication, token exchange and datetime MCP server ([01bdd05](https://github.com/IA-Generative/toolmesh/commit/01bdd05026d176d882ccdcf8c9d9ffe4215ce680))
+
 ## [0.2.0](https://github.com/IA-Generative/toolmesh/compare/v0.1.0...v0.2.0) (2026-10-13)
 
 
