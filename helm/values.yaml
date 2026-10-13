@@ -1,0 +1,55 @@
+# -- Master switch for the whole chart.
+# @section -- General
+enabled: true
+# -- Provide a name in place of the default application name.
+# @section -- General
+nameOverride: ""
+# -- String to fully override the default application name.
+# @section -- General
+fullnameOverride: ""
+
+replicaCount: 1
+
+image:
+  # -- Container image repository for the backend service.
+  repository: ghcr.io/REPLACE_ME/toolmesh/backend
+  # -- Image tag. Bumped automatically by the CD release workflow.
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+service:
+  type: ClusterIP
+  port: 8000
+
+resources: {}
+# resources:
+#   limits:
+#     cpu: 500m
+#     memory: 512Mi
+#   requests:
+#     cpu: 100m
+#     memory: 128Mi
+
+env: {}
+# env:
+#   LOG_LEVEL: info
+
+livenessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 15
+
+readinessProbe:
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
