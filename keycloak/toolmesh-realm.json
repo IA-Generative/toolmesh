@@ -70,7 +70,7 @@
       "publicClient": false,
       "secret": "toolmesh-bff-secret",
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "redirectUris": [
         "http://localhost:8010/api/auth/callback"
       ],
