@@ -41,11 +41,26 @@ confidential Keycloak client `toolmesh-bff`, keeps the tokens in Redis, and give
 | `GET /api/auth/login?redirect=/path` | redirects to Keycloak (PKCE + state) |
 | `GET /api/auth/callback` | swaps the code for tokens, opens the session, redirects to the SPA |
 | `GET /api/auth/me` | current user (cookie or bearer) |
+| `POST /api/auth/token` | password grant for scripts/SDK, JSON body `{"username","password"}` |
+| `POST /api/auth/refresh` | refresh grant for scripts/SDK, JSON body `{"refresh_token"}` |
 | `POST /api/auth/logout` | drops the session, returns `{"redirectUrl"}` (Keycloak end-session) for the SPA to open |
 
 The SPA calls the API with `credentials: "include"`. Settings: `TOOLMESH_FRONTEND_URL` (post-login redirect and the
 only CORS origin, default `http://localhost:3000`), `TOOLMESH_BACKEND_PUBLIC_URL`, `TOOLMESH_REDIS_URL`,
 `TOOLMESH_BFF_CLIENT_SECRET`, `TOOLMESH_SESSION_COOKIE_SECURE` (set `true` behind HTTPS).
+
+Try it without a frontend by pointing the post-login redirect at the backend itself:
+
+```bash
+TOOLMESH_FRONTEND_URL=http://localhost:8010 docker compose up -d --build
+```
+
+1. Open http://localhost:8010/api/auth/login?redirect=/api/auth/me in a browser and sign in as `user` / `user`.
+   Keycloak sends you back to `/api/auth/me`, which shows your profile (the session cookie is set).
+2. Open http://localhost:8010/api/me/tools: the same cookie works on every route.
+3. Log out from http://localhost:8010/docs (`POST /api/auth/logout`, same cookie), then open the returned `redirectUrl`.
+
+Scripts: `curl -s -X POST localhost:8010/api/auth/token -H 'Content-Type: application/json' -d '{"username":"user","password":"user"}'`.
 
 ## Forwarding identity to another service (token exchange)
 

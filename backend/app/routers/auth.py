@@ -8,6 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from jwt import PyJWKClient
+from pydantic import BaseModel
 
 from app.auth import CurrentUser, User
 from app.auth.dependencies import decode_token, get_jwks_client
@@ -104,6 +105,41 @@ async def callback(
         max_age=settings.session_ttl_seconds,
     )
     return redirect
+
+
+class PasswordCredentials(BaseModel):
+    username: str
+    password: str
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+async def _token_request(settings: Settings, data: dict[str, str], *, error: str) -> dict:
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                settings.token_url,
+                data={"client_id": settings.bff_client_id, "client_secret": settings.bff_client_secret, **data},
+            )
+        response.raise_for_status()
+        return response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, error) from exc
+
+
+@router.post("/token", summary="Password grant for non-browser clients (scripts, SDK)")
+async def token(credentials: PasswordCredentials, settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+    """Returns Keycloak's token response; use `access_token` as a bearer token."""
+    data = {"grant_type": "password", "username": credentials.username, "password": credentials.password}
+    return await _token_request(settings, data, error="Invalid credentials")
+
+
+@router.post("/refresh", summary="Refresh grant for non-browser clients (scripts, SDK)")
+async def refresh(body: RefreshRequest, settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+    data = {"grant_type": "refresh_token", "refresh_token": body.refresh_token}
+    return await _token_request(settings, data, error="Invalid refresh token")
 
 
 @router.post("/logout", summary="End the BFF session and the Keycloak SSO session")
