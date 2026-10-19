@@ -192,3 +192,30 @@ async def test_cors_allows_only_the_spa_origin_with_credentials(client: AsyncCli
         "/api/auth/me", headers={"Origin": "http://evil.test", "Access-Control-Request-Method": "GET"}
     )
     assert "access-control-allow-origin" not in bad.headers
+
+
+async def test_token_returns_keycloak_tokens(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _mock_keycloak(monkeypatch, _token_response(["user"]))
+
+    response = await client.post("/api/auth/token", json={"username": "user", "password": "user"})
+
+    assert response.status_code == 200
+    assert response.json()["refresh_token"] == "r1"
+    assert parse_qs(seen[0].content.decode())["grant_type"] == ["password"]
+
+
+async def test_token_with_bad_credentials_is_401(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    _mock_keycloak(monkeypatch, {"error": "invalid_grant"}, status_code=401)
+
+    response = await client.post("/api/auth/token", json={"username": "user", "password": "nope"})
+
+    assert response.status_code == 401
+
+
+async def test_refresh_returns_new_tokens(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen = _mock_keycloak(monkeypatch, _token_response(["user"]))
+
+    response = await client.post("/api/auth/refresh", json={"refresh_token": "r0"})
+
+    assert response.status_code == 200
+    assert parse_qs(seen[0].content.decode())["refresh_token"] == ["r0"]
