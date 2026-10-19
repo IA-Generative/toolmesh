@@ -30,6 +30,23 @@ curl -s http://localhost:8080/realms/toolmesh/protocol/openid-connect/token \
 
 `GET /api/me/tools` returns mock tools filtered by the caller's realm roles: `user` sees 3, `admin` sees all 5.
 
+## Browser login (BFF)
+
+For a web SPA, the backend acts as its BFF: it runs the OIDC authorization code flow with PKCE against the
+confidential Keycloak client `toolmesh-bff`, keeps the tokens in Redis, and gives the browser only an opaque
+`HttpOnly` cookie (`toolmesh_session`). Bearer tokens keep working for CLIs and agents, and token exchange is unchanged.
+
+| Endpoint | Role |
+|----------|------|
+| `GET /api/auth/login?redirect=/path` | redirects to Keycloak (PKCE + state) |
+| `GET /api/auth/callback` | swaps the code for tokens, opens the session, redirects to the SPA |
+| `GET /api/auth/me` | current user (cookie or bearer) |
+| `POST /api/auth/logout` | drops the session, returns `{"redirectUrl"}` (Keycloak end-session) for the SPA to open |
+
+The SPA calls the API with `credentials: "include"`. Settings: `TOOLMESH_FRONTEND_URL` (post-login redirect and the
+only CORS origin, default `http://localhost:3000`), `TOOLMESH_BACKEND_PUBLIC_URL`, `TOOLMESH_REDIS_URL`,
+`TOOLMESH_BFF_CLIENT_SECRET`, `TOOLMESH_SESSION_COOKIE_SECURE` (set `true` behind HTTPS).
+
 ## Forwarding identity to another service (token exchange)
 
 `GET /api/mock/downstream` shows the pattern: toolmesh swaps the caller's token for a new one

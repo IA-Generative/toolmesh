@@ -64,6 +64,38 @@
       "fullScopeAllowed": false
     },
     {
+      "clientId": "toolmesh-bff",
+      "name": "Toolmesh BFF (browser login, authorization code + PKCE)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "toolmesh-bff-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8010/api/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "toolmesh-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "toolmesh",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ],
+      "fullScopeAllowed": false
+    },
+    {
       "clientId": "toolmesh-agent",
       "name": "Toolmesh service client (client credentials flow)",
       "enabled": true,
@@ -191,6 +223,13 @@
   "scopeMappings": [
     {
       "client": "toolmesh-cli",
+      "roles": [
+        "user",
+        "admin"
+      ]
+    },
+    {
+      "client": "toolmesh-bff",
       "roles": [
         "user",
         "admin"
