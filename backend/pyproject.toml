@@ -11,6 +11,7 @@ dependencies = [
     "pydantic-settings>=2.7",
     "httpx>=0.28.1",
     "mcp>=2.0",
+    "redis>=5.2",
 ]
 
 [dependency-groups]
@@ -20,6 +21,7 @@ test = [
     "pytest-cov>=7.1.0",
     "httpx>=0.28.1",
     "ruff>=0.15.0",
+    "fakeredis>=2.26",
 ]
 dev = [{ include-group = "test" }]
 
