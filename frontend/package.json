@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "postinstall": "copy-dsfr-to-public",
     "predev": "only-include-used-icons",
-    "prebuild": "only-include-used-icons"
+    "prebuild": "only-include-used-icons",
+    "test:e2e": "playwright test --grep-invert @docs",
+    "docs:screenshots": "playwright test --grep @docs"
+
   },
   "dependencies": {
     "@codegouvfr/react-dsfr": "^1.36.0",
@@ -20,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
