@@ -22,17 +22,27 @@ global:
   # `<vaultEnv>/toolmesh/<secret>`. Defaults; an environment file overrides `vaultEnv`.
   vaultMount: "exploration"
   vaultEnv: "dev"
-  # One Ingress for the whole application: the backend answers on the host root.
+  # One Ingress for the whole application: `/api` goes to the backend, everything else to the frontend.
+  # The host (and `tls`) belong to the environment file.
   ingress:
-    enabled: false
+    enabled: true
     className: ""
     annotations: {}
     hosts:
       - name: "toolmesh.example.org"
         paths:
+          - path: "/api"
+            pathType: "Prefix"
+            backend:
+              serviceName: "toolmesh-backend"
+              portNumber: 80
           - path: "/"
             pathType: "Prefix"
             backend:
+              serviceName: "toolmesh-frontend"
+              portNumber: 80
+
+backend:
               serviceName: "toolmesh-backend"
               portNumber: 80
 
@@ -41,11 +51,17 @@ backend:
   envFrom:
     - secretRef:
         name: "toolmesh-keycloak"
+    - secretRef:
+        name: "toolmesh-redis"
   # Plain (non-secret) app config - see the backend settings for the full contract.
   env:
     # Uncomment when Keycloak is reached through another address inside the cluster.
     # TOOLMESH_OIDC_JWKS_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/certs"
     # TOOLMESH_OIDC_TOKEN_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/token"
+    # Browser login (BFF): the SPA and the backend share one origin, so the session cookie is first-party.
+    TOOLMESH_FRONTEND_URL: "https://toolmesh.example.org"
+    TOOLMESH_BACKEND_PUBLIC_URL: "https://toolmesh.example.org"
+    TOOLMESH_SESSION_COOKIE_SECURE: "true"
     # Cluster-internal address of the datetime MCP server (Service `toolmesh-mcp-datetime`).
     TOOLMESH_MCP_DATETIME_URL: "http://toolmesh-mcp-datetime:80/mcp"
   podSecurityContext:
@@ -63,6 +79,24 @@ backend:
     limits:
       cpu: "500m"
       memory: "512Mi"
+
+# Static SPA served by nginx. It calls `/api` on its own origin (the Ingress routes it to the backend).
+frontend:
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: "RuntimeDefault"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "128Mi"
 
 # Standalone MCP server for dates and periods, protected by a Keycloak token.
 mcp_datetime:
@@ -88,6 +122,7 @@ mcp_datetime:
 extraObjects:
   # Vault keys: TOOLMESH_OIDC_ISSUER, TOOLMESH_OIDC_AUDIENCE, TOOLMESH_OIDC_CLIENT_ID,
   # TOOLMESH_OIDC_CLIENT_SECRET (the secret of the `toolmesh` confidential client, used for token exchange),
+  # TOOLMESH_BFF_CLIENT_ID, TOOLMESH_BFF_CLIENT_SECRET (the `toolmesh-bff` client of the browser login),
   # MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_AUDIENCE. One secret for every component, so the backend
   # and the MCP server can never disagree on the issuer.
   toolmesh-keycloak:
@@ -109,3 +144,50 @@ extraObjects:
       destination:
         name: toolmesh-keycloak
         create: true
+
+  # Vault key: REDIS_PASSWORD. The operator also builds TOOLMESH_REDIS_URL (sessions of the backend) from it.
+  toolmesh-redis:
+    apiVersion: secrets.hashicorp.com/v1beta1
+    kind: VaultStaticSecret
+    metadata:
+      name: toolmesh-redis
+    spec:
+      vaultAuthRef: vault-auth
+      mount: '{{ required "global.vaultMount is required (exploration...)" .Values.global.vaultMount }}'
+      type: kv-v2
+      path: '{{ required "global.vaultEnv is required (dev, staging, prod...)" .Values.global.vaultEnv }}/toolmesh/redis'
+      refreshAfter: 60s
+      rolloutRestartTargets:
+        - kind: Deployment
+          name: '{{ include "helper.componentFullname" (dict "root" . "componentName" "backend") }}'
+      destination:
+        name: toolmesh-redis
+        create: true
+        transformation:
+          templates:
+            TOOLMESH_REDIS_URL:
+              text: 'redis://:{{ "{{" }} get .Secrets "REDIS_PASSWORD" {{ "}}" }}@toolmesh-redis:6379/0'
+
+# Redis (sessions of the backend) is the bundled chart, like Muffin; its Service is `<fullnameOverride>`
+# (host of TOOLMESH_REDIS_URL, see `toolmesh-redis`).
+redis:
+  enabled: true
+  fullnameOverride: "toolmesh-redis"
+  architecture: "standalone"
+  auth:
+    existingSecret: "toolmesh-redis"
+    existingSecretPasswordKey: "REDIS_PASSWORD"
+  # The generated redis.conf has no `dir`, so redis writes in / and a read-only root filesystem makes the RDB
+  # snapshots fail (MISCONF): point it at the persistent volume.
+  config:
+    content: |
+      # Redis configuration
+      bind * -::*
+      dir /data
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
