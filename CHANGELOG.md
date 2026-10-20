@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.5.0](https://github.com/IA-Generative/toolmesh/compare/v0.4.0...v0.5.0) (2026-10-20)
+
+
+### Features
+
+* **frontend:** containerize the SPA and deploy it with the chart ([4fc5775](https://github.com/IA-Generative/toolmesh/commit/4fc577519681b84b76722339127e6fe66770689d))
+
+
+### Bug Fixes
+
+* **chart:** remove a duplicated backend block in common-values ([4379e10](https://github.com/IA-Generative/toolmesh/commit/4379e104308d3cc97aa7e27584aff8dcf2cb97da))
+* **frontend:** run the image as the unprivileged nginx user ([133f351](https://github.com/IA-Generative/toolmesh/commit/133f35185623cd5ba3c2399983c676500704c7de))
+
 ## [0.4.0](https://github.com/IA-Generative/toolmesh/compare/v0.3.0...v0.4.0) (2026-10-20)
 
 
