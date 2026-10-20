@@ -1,0 +1,25 @@
+{{- if .Values.enabled }}
+{{- if eq .Values.mcp_datetime.deploymentType "Deployment" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_datetime")) | nindent 4 }}
+spec:
+  {{- if not .Values.mcp_datetime.autoscaling.enabled }}
+  replicas: {{ .Values.mcp_datetime.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.mcp_datetime.revisionHistoryLimit | default 10 }}
+  selector:
+    matchLabels: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_datetime") | nindent 6 }}
+  strategy:
+    type: {{ .Values.mcp_datetime.strategy.type }}
+    {{- if eq .Values.mcp_datetime.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.mcp_datetime.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.mcp_datetime.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
+  template:
+    {{- include "helper.component.podTemplate" (dict "root" . "name" "mcp_datetime" "component" .Values.mcp_datetime) | nindent 4 }}
+{{- end }}
+{{- end }}

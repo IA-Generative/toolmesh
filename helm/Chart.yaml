@@ -3,8 +3,12 @@ name: helm
 type: application
 version: 0.3.0
 appVersion: "0.3.0"
-description: A Helm chart to deploy toolmesh.
+description: A Helm chart to deploy toolmesh (backend, datetime MCP server).
 kubeVersion: ">=1.25.0-0"
 deprecated: false
 annotations: {}
 keywords: []
+sources:
+  - https://github.com/IA-Generative/toolmesh
+  - https://github.com/this-is-tobi/helm-charts
+maintainers: []
