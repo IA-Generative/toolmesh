@@ -114,6 +114,9 @@ jobs:
                     - name: mcp-datetime
                       context: mcp-datetime
                       dockerfile: mcp-datetime/Dockerfile
+                    - name: frontend
+                      context: frontend
+                      dockerfile: frontend/Dockerfile
         with:
             IMAGE_NAME: ${{ needs.expose-vars.outputs.IMAGE_BASE }}/${{ matrix.service.name }}
             IMAGE_TAG: ${{ needs.release.outputs.version }}
