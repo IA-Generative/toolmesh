@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0-rc](https://github.com/IA-Generative/toolmesh/compare/v0.3.0...v0.4.0-rc) (2026-10-20)
+
+
+### Features
+
+* **auth:** add /api/auth/token and /refresh for non-browser clients ([f470af1](https://github.com/IA-Generative/toolmesh/commit/f470af1b7a9978881febff5f9c5912b825ef7720))
+* **auth:** add BFF session login for web SPAs ([5a4cb8e](https://github.com/IA-Generative/toolmesh/commit/5a4cb8ed2c5df1f4131a11ea93cb34e7afda27b2))
+* **front:** add DSFR SPA with BFF Keycloak login ([cd6dcad](https://github.com/IA-Generative/toolmesh/commit/cd6dcadf876190ce4d25fe4e7636aa0af39b9325))
+
 ## [0.3.0](https://github.com/IA-Generative/toolmesh/compare/v0.2.0...v0.3.0) (2026-10-13)
 
 
