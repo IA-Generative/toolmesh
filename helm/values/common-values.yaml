@@ -43,10 +43,6 @@ global:
               portNumber: 80
 
 backend:
-              serviceName: "toolmesh-backend"
-              portNumber: 80
-
-backend:
   # Keycloak settings (issuer, audience, client id and secret), from the Secret created by `extraObjects` below.
   envFrom:
     - secretRef:
