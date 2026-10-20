@@ -3,6 +3,9 @@ import AppHeader from "./components/AppHeader";
 import AppFooter from "./components/AppFooter";
 import Landing from "./pages/Landing";
 import MentionsLegales from "./pages/MentionsLegales";
+import RequireAuth from "./auth/RequireAuth";
+import Home from "./pages/Home";
+import NotFound from "./pages/NotFound";
 
 export default function App() {
   return (
@@ -11,7 +14,8 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Landing />}/>
         <Route path="/mentions-legales" element={<MentionsLegales />}/>
-        <Route path="*" element={<div><br /> <p className="fr-container">Erreur : Page introuvable</p></div>} />
+        <Route path="/accueil" element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       <AppFooter />
     </>

@@ -1,8 +1,10 @@
 import Button from "@codegouvfr/react-dsfr/Button";
 import { useAuth } from "../auth/AuthContext";
+import { Navigate } from "react-router";
 
 export default function Landing() {
-  const { status, user, loginUrl } = useAuth();
+  const { status, loginUrl } = useAuth();
+  if (status === "authenticated") return <Navigate to="/accueil" replace />;
   return (
     <main id="contenu" className="fr-container fr-my-8w">
       <h1>ToolMesh</h1>
@@ -16,7 +18,6 @@ export default function Landing() {
           Se connecter
         </Button>
       )}
-      {status === "authenticated" && <p>Connecté en tant que {user.username}</p>}
     </main>
   );
 }
