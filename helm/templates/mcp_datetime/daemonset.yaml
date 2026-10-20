@@ -1,0 +1,18 @@
+{{- if .Values.enabled }}
+{{- if eq .Values.mcp_datetime.deploymentType "DaemonSet" }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_datetime")) | nindent 4 }}
+spec:
+  revisionHistoryLimit: {{ .Values.mcp_datetime.revisionHistoryLimit | default 10 }}
+  selector:
+    matchLabels: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_datetime") | nindent 6 }}
+  {{- with .Values.mcp_datetime.updateStrategy }}
+  updateStrategy: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "helper.component.podTemplate" (dict "root" . "name" "mcp_datetime" "component" .Values.mcp_datetime) | nindent 4 }}
+{{- end }}
+{{- end }}

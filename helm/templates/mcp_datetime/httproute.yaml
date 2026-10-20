@@ -1,0 +1,117 @@
+{{- if .Values.enabled }}
+{{- if .Values.mcp_datetime.httpRoute.enabled -}}
+{{- $fullNameApp := include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") -}}
+{{- $svcPortApp := .Values.mcp_datetime.service.port -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_datetime")) | nindent 4 }}
+  {{- if .Values.mcp_datetime.httpRoute.labels }}
+    {{- toYaml .Values.mcp_datetime.httpRoute.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.mcp_datetime.httpRoute.annotations }}
+  annotations:
+    {{- tpl (toYaml .Values.mcp_datetime.httpRoute.annotations) . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.mcp_datetime.httpRoute.parentRefs }}
+  parentRefs:
+  {{- range .Values.mcp_datetime.httpRoute.parentRefs }}
+  - name: {{ .name }}
+    {{- if .namespace }}
+    namespace: {{ .namespace }}
+    {{- end }}
+    {{- if .sectionName }}
+    sectionName: {{ .sectionName }}
+    {{- end }}
+    {{- if .port }}
+    port: {{ .port }}
+    {{- end }}
+    {{- if .group }}
+    group: {{ .group }}
+    {{- end }}
+    {{- if .kind }}
+    kind: {{ .kind }}
+    {{- end }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.mcp_datetime.httpRoute.hostnames }}
+  hostnames:
+  {{- range .Values.mcp_datetime.httpRoute.hostnames }}
+  - {{ . | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if .Values.mcp_datetime.httpRoute.rules }}
+  rules:
+  {{- range .Values.mcp_datetime.httpRoute.rules }}
+  {{- if .matches }}
+  - matches:
+    {{- range .matches }}
+    {{- if .path }}
+    - path:
+        type: {{ .path.type | default "PathPrefix" }}
+        value: {{ .path.value | default "/" }}
+    {{- end }}
+      {{- if .headers }}
+      headers:
+      {{- range .headers }}
+      - type: {{ .type | default "Exact" }}
+        name: {{ .name }}
+        value: {{ .value }}
+      {{- end }}
+      {{- end }}
+      {{- if .queryParams }}
+      queryParams:
+      {{- range .queryParams }}
+      - type: {{ .type | default "Exact" }}
+        name: {{ .name }}
+        value: {{ .value }}
+      {{- end }}
+      {{- end }}
+      {{- if .method }}
+      method: {{ .method }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+    {{- if .filters }}
+    filters:
+    {{- toYaml .filters | nindent 4 }}
+    {{- end }}
+    {{- if .mcp_datetimeRefs }}
+    mcp_datetimeRefs:
+    {{- range .mcp_datetimeRefs }}
+    - name: {{ .name | default $fullNameApp }}
+      port: {{ .port | default $svcPortApp }}
+      {{- if .weight }}
+      weight: {{ .weight }}
+      {{- end }}
+      {{- if .group }}
+      group: {{ .group }}
+      {{- end }}
+      {{- if .kind }}
+      kind: {{ .kind }}
+      {{- end }}
+      {{- if .namespace }}
+      namespace: {{ .namespace }}
+      {{- end }}
+    {{- end }}
+    {{- else }}
+    mcp_datetimeRefs:
+    - name: {{ $fullNameApp }}
+      port: {{ $svcPortApp }}
+    {{- end }}
+  {{- end }}
+  {{- else }}
+  {{/* Default rule when no rules specified */}}
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: "/"
+    mcp_datetimeRefs:
+    - name: {{ $fullNameApp }}
+      port: {{ $svcPortApp }}
+  {{- end }}
+{{- end }}
+{{- end }}

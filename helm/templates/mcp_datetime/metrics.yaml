@@ -1,0 +1,23 @@
+{{- if .Values.enabled }}
+{{- if .Values.mcp_datetime.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime-metrics") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_datetime-metrics")) | nindent 4 }}
+  {{- if .Values.mcp_datetime.metrics.service.labels }}
+    {{- toYaml .Values.mcp_datetime.metrics.service.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.mcp_datetime.metrics.service.annotations }}
+  annotations: {{- toYaml .Values.mcp_datetime.metrics.service.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.mcp_datetime.metrics.service.type | default "ClusterIP" }}
+  ports:
+  - port: {{ .Values.mcp_datetime.metrics.service.port }}
+    targetPort: {{ .Values.mcp_datetime.metrics.service.targetPort }}
+    protocol: TCP
+    name: {{ .Values.mcp_datetime.metrics.service.portName | default "metrics" }}
+  selector: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_datetime") | nindent 4 }}
+{{- end }}
+{{- end }}

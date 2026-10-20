@@ -1,3 +1,10 @@
-oidc:
-  clientSecret:
-    value: ci-dummy-secret
+backend:
+  env:
+    TOOLMESH_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
+    TOOLMESH_OIDC_AUDIENCE: "toolmesh"
+    TOOLMESH_OIDC_CLIENT_ID: "toolmesh"
+    TOOLMESH_OIDC_CLIENT_SECRET: "ci-dummy-secret"
+mcp_datetime:
+  env:
+    MCP_DATETIME_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
+    MCP_DATETIME_OIDC_AUDIENCE: "mcp-datetime"

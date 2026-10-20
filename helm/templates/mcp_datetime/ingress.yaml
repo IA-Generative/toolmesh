@@ -1,0 +1,53 @@
+{{- if .Values.enabled }}
+{{- if .Values.mcp_datetime.ingress.enabled -}}
+{{- $fullNameApp := include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") -}}
+{{- $svcPortApp := .Values.mcp_datetime.service.port -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_datetime")) | nindent 4 }}
+  {{- if .Values.mcp_datetime.ingress.labels }}
+    {{- toYaml .Values.mcp_datetime.ingress.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.mcp_datetime.ingress.annotations }}
+  annotations:
+    {{- tpl (toYaml .Values.mcp_datetime.ingress.annotations) . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.mcp_datetime.ingress.className }}
+  ingressClassName: {{ .Values.mcp_datetime.ingress.className }}
+  {{- end }}
+  {{- if gt (len .Values.mcp_datetime.ingress.tls) 0 }}
+  tls:
+  {{- range .Values.mcp_datetime.ingress.tls }}
+  - hosts:
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+    secretName: {{ .secretName | default (printf "%s-%s" $fullNameApp "tls") | quote }}
+  {{- end }}
+  {{- end }}
+  rules:
+  {{- range .Values.mcp_datetime.ingress.hosts }}
+  - host: {{ .name | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path | default "/" }}
+        pathType: {{ .pathType | default "Prefix" }}
+        mcp_datetime:
+          service:
+          {{- if .mcp_datetime }}
+            name: {{ .mcp_datetime.serviceName | default $fullNameApp }}
+            port:
+              number: {{ .mcp_datetime.portNumber | default $svcPortApp }}
+          {{- else }}
+            name: {{ $fullNameApp }}
+            port:
+              number: 80
+          {{- end }}
+      {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

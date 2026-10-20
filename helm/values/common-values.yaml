@@ -1,0 +1,111 @@
+# Deployment values shared by every environment, same layout as Muffin's `values/common-values.yaml`.
+# `values.yaml` only holds the chart's defaults and documentation: what is specific to toolmesh (OIDC
+# settings, the Secret holding the client secret, the wiring between the backend and the datetime MCP
+# server) lives here. Layer an environment file on top:
+#
+#   helm upgrade --install toolmesh ./helm -f helm/values/common-values.yaml -f values-<env>.yaml
+#
+# What an environment file must set: the Ingress host (and `tls`),
+# `global.vaultMount` (the Vault KV v2 mount) and `global.vaultEnv` (dev, staging, prod...: the first
+# level of every path, `<vaultEnv>/toolmesh/<secret>`), the `vaultAuthRef` if it differs, and the image
+# tag if it differs from the chart's appVersion.
+#
+# `{{ "{{" }} ... {{ "}}" }}` is how a Vault Secrets Operator template is written inside a Helm value:
+# `extraObjects` is rendered with `tpl`, so the escaped braces come out as `{{ ... }}` for the operator.
+
+# Fixed resource names (`toolmesh-backend`, `toolmesh-mcp-datetime`), independent of the release name:
+# the backend reaches the MCP server by its Service name, and `env` values are not templated.
+fullnameOverride: "toolmesh"
+
+global:
+  # Where the Vault Secrets Operator reads the secrets: KV v2 mount `vaultMount`, path
+  # `<vaultEnv>/toolmesh/<secret>`. Defaults; an environment file overrides `vaultEnv`.
+  vaultMount: "exploration"
+  vaultEnv: "dev"
+  # One Ingress for the whole application: the backend answers on the host root.
+  ingress:
+    enabled: false
+    className: ""
+    annotations: {}
+    hosts:
+      - name: "toolmesh.example.org"
+        paths:
+          - path: "/"
+            pathType: "Prefix"
+            backend:
+              serviceName: "toolmesh-backend"
+              portNumber: 80
+
+backend:
+  # Keycloak settings (issuer, audience, client id and secret), from the Secret created by `extraObjects` below.
+  envFrom:
+    - secretRef:
+        name: "toolmesh-keycloak"
+  # Plain (non-secret) app config - see the backend settings for the full contract.
+  env:
+    # Uncomment when Keycloak is reached through another address inside the cluster.
+    # TOOLMESH_OIDC_JWKS_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/certs"
+    # TOOLMESH_OIDC_TOKEN_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/token"
+    # Cluster-internal address of the datetime MCP server (Service `toolmesh-mcp-datetime`).
+    TOOLMESH_MCP_DATETIME_URL: "http://toolmesh-mcp-datetime:80/mcp"
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: "RuntimeDefault"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+# Standalone MCP server for dates and periods, protected by a Keycloak token.
+mcp_datetime:
+  envFrom:
+    - secretRef:
+        name: "toolmesh-keycloak"
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: "RuntimeDefault"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
+extraObjects:
+  # Vault keys: TOOLMESH_OIDC_ISSUER, TOOLMESH_OIDC_AUDIENCE, TOOLMESH_OIDC_CLIENT_ID,
+  # TOOLMESH_OIDC_CLIENT_SECRET (the secret of the `toolmesh` confidential client, used for token exchange),
+  # MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_AUDIENCE. One secret for every component, so the backend
+  # and the MCP server can never disagree on the issuer.
+  toolmesh-keycloak:
+    apiVersion: secrets.hashicorp.com/v1beta1
+    kind: VaultStaticSecret
+    metadata:
+      name: toolmesh-keycloak
+    spec:
+      vaultAuthRef: vault-auth
+      mount: '{{ required "global.vaultMount is required (exploration...)" .Values.global.vaultMount }}'
+      type: kv-v2
+      path: '{{ required "global.vaultEnv is required (dev, staging, prod...)" .Values.global.vaultEnv }}/toolmesh/keycloak'
+      refreshAfter: 60s
+      rolloutRestartTargets:
+        - kind: Deployment
+          name: '{{ include "helper.componentFullname" (dict "root" . "componentName" "backend") }}'
+        - kind: Deployment
+          name: '{{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_datetime") }}'
+      destination:
+        name: toolmesh-keycloak
+        create: true
