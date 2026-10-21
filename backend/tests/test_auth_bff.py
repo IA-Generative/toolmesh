@@ -11,11 +11,10 @@ from app.auth.keycloak import get_keycloak_openid
 from app.auth.session import SessionStore, get_session_store
 from app.config import Settings, get_settings
 from app.main import app
-from tests.test_tools import AUDIENCE, ISSUER, _FakeJwks, make_token
+from tests.test_tools import ISSUER, _FakeJwks, make_token
 
 SETTINGS = Settings(
     keycloak_url="http://kc.test",
-    oidc_audience=AUDIENCE,
     frontend_url="http://spa.test",
     backend_public_url="http://api.test",
 )

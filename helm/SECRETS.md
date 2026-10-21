@@ -38,8 +38,6 @@ Clés à y écrire :
 | `MCP_DATETIME_OIDC_ISSUER` | Issuer Keycloak du serveur MCP (`https://<keycloak>/realms/<realm>`) | | ✔ |
 | `MCP_DATETIME_OIDC_AUDIENCE` | Audience attendue par le serveur MCP (`mcp-datetime`) | | ✔ |
 
-L'audience attendue dans les tokens du backend est l'id du client (`toolmesh`) : le client doit avoir un *audience mapper* qui l'ajoute aux tokens.
-
 Le realm (`TOOLMESH_KEYCLOAK_REALM`) et le client (`TOOLMESH_KEYCLOAK_CLIENT_ID`, `toolmesh`) ne sont pas secrets :
 ils sont dans `backend.env` de [`values/common-values.yaml`](values/common-values.yaml), comme pour Muffin. L'issuer
 du backend en est déduit (`<URL>/realms/<realm>`) et doit correspondre exactement au claim `iss` des tokens :

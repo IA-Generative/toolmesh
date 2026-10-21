@@ -27,16 +27,16 @@ def _unauthorized(detail: str) -> HTTPException:
 
 
 def decode_token(token: str, settings: Settings, jwks_client: PyJWKClient) -> User:
-    """Validate an access token (signature, issuer, audience, expiry) and return its owner."""
+    """Validate an access token (signature, issuer, expiry, and the audience if configured) and return its owner."""
     try:
         signing_key = jwks_client.get_signing_key_from_jwt(token)
         claims = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
-            audience=settings.audience,
+            audience=settings.oidc_audience,
             issuer=settings.oidc_issuer,
-            options={"require": ["exp", "iss", "aud", "sub"]},
+            options={"require": ["exp", "iss", "sub"], "verify_aud": settings.oidc_audience is not None},
         )
     except jwt.PyJWTError as exc:
         raise _unauthorized(f"Invalid token: {exc}") from exc

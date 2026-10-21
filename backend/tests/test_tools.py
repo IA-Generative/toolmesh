@@ -5,9 +5,10 @@ from typing import Any
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
 
-from app.auth.dependencies import get_jwks_client
+from app.auth.dependencies import decode_token, get_jwks_client
 from app.config import Settings, get_settings
 from app.main import app
 
@@ -41,7 +42,7 @@ def make_token(roles: list[str], *, key: Any = _key, **overrides: Any) -> str:
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    app.dependency_overrides[get_settings] = lambda: Settings(keycloak_url="http://kc.test", oidc_audience=AUDIENCE)
+    app.dependency_overrides[get_settings] = lambda: Settings(keycloak_url="http://kc.test")
     app.dependency_overrides[get_jwks_client] = lambda: _FakeJwks()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
@@ -76,15 +77,33 @@ async def test_admin_sees_all_tools(client: AsyncClient) -> None:
     "token",
     [
         make_token(["user"], exp=int(time.time()) - 10),
-        make_token(["user"], aud="other"),
         make_token(["user"], iss="http://evil/realms/x"),
         make_token(["user"], key=_other_key),
         "not-a-jwt",
     ],
-    ids=["expired", "wrong-audience", "wrong-issuer", "bad-signature", "garbage"],
+    ids=["expired", "wrong-issuer", "bad-signature", "garbage"],
 )
 async def test_invalid_token_is_401(client: AsyncClient, token: str) -> None:
     assert (await client.get("/api/me/tools", headers=auth(token))).status_code == 401
+
+
+async def test_audience_is_ignored_unless_configured(client: AsyncClient) -> None:
+    for aud in ("other", None):
+        claims = {"aud": aud} if aud else {}
+        token = jwt.encode(
+            {"sub": "u1", "iss": ISSUER, "exp": int(time.time()) + 300, "realm_access": {"roles": ["user"]}} | claims,
+            _key,
+            algorithm="RS256",
+        )
+        assert (await client.get("/api/me/tools", headers=auth(token))).status_code == 200
+
+
+async def test_configured_audience_is_enforced() -> None:
+    settings = Settings(keycloak_url="http://kc.test", oidc_audience=AUDIENCE)
+
+    assert decode_token(make_token(["user"]), settings, _FakeJwks()).sub == "u1"
+    with pytest.raises(HTTPException):
+        decode_token(make_token(["user"], aud="other"), settings, _FakeJwks())
 
 
 async def test_downstream_call_uses_exchanged_token(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:

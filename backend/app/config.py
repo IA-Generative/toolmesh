@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # One confidential client for the browser login (code + PKCE), the password/refresh grants and token exchange.
     keycloak_client_id: str = "toolmesh"
     keycloak_client_secret: str = "toolmesh-secret"
-    # Audience expected in incoming bearer tokens; defaults to the client id (the mock downstream overrides it).
+    # Audience to enforce on incoming tokens; unset means `aud` is not checked (only the mock downstream sets it).
     oidc_audience: str | None = None
 
     downstream_url: str = "http://localhost:8020"
@@ -34,10 +34,6 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     session_ttl_seconds: int = 28800
-
-    @property
-    def audience(self) -> str:
-        return self.oidc_audience or self.keycloak_client_id
 
     @property
     def public_url(self) -> str:
