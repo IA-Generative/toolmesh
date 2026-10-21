@@ -1,11 +1,20 @@
 import { test, expect } from "@playwright/test";
+import AxeBuilder from "@axe-core/playwright";
 
 const ME = "**/api/auth/me";
 const USER = { sub: "1", username: "user", email: "u@x.fr", roles: ["user"] };
 const TOOLS = {
   user: "user", roles: ["user"],
-  tools: [{ name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null }],
+  tools: [
+    { name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null },
+    { name: "calendar", description: "Agenda partagé", source: "api", type: "api", required_role: "user" },
+  ],
 };
+const asUserWithTools = async (page) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+};
+const sidebar = (page) => page.getByRole("complementary", { name: "Barre latérale" });
 const asAnonymous = (page) => page.route(ME, (r) => r.fulfill({ status: 401, json: {} }));
 const asUser = (page) => page.route(ME, (r) => r.fulfill({ json: USER }));
 
@@ -52,4 +61,136 @@ test("page inconnue : affiche la page 404", async ({ page }) => {
   await asAnonymous(page);
   await page.goto("/n-importe-quoi");
   await expect(page.getByRole("heading", { name: "Page non trouvée" })).toBeVisible();
+});
+
+test("accueil : la barre latérale présente la marque, la navigation et l'historique", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil");
+
+  await expect(sidebar(page)).toBeVisible();
+  await expect(page.getByRole("link", { name: /ToolMesh\s*,?\s*accueil/ })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(nav.getByRole("link", { name: "Accueil" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Historique", level: 2 })).toBeVisible();
+  await expect(sidebar(page).getByRole("link", { name: "Mentions légales" })).toBeVisible();
+});
+
+test("menu du compte : s'ouvre, affiche l'email, se ferme avec Échap puis au clic extérieur", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil");
+
+  const trigger = page.getByRole("button", { name: "user", exact: true });
+  const panel = page.getByRole("group", { name: "Menu du compte" });
+
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(panel).toBeHidden();
+
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(panel.getByText("u@x.fr")).toBeVisible();
+  await expect(panel.getByRole("button", { name: "Se déconnecter" })).toBeVisible();
+
+  await page.keyboard.press("Escape");
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(trigger).toBeFocused();
+
+  await trigger.click();
+  await page.getByRole("heading", { name: "Mes outils" }).click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+});
+
+test("déconnexion depuis le menu du compte", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.route("**/api/auth/logout", (r) =>
+    r.fulfill({ json: { redirectUrl: "http://localhost:3000/mentions-legales" } }));
+  await page.goto("/accueil");
+
+  await page.getByRole("button", { name: "user", exact: true }).click();
+  const logoutReq = page.waitForRequest((r) => r.url().includes("/api/auth/logout") && r.method() === "POST");
+  await page.getByRole("group", { name: "Menu du compte" }).getByRole("button", { name: "Se déconnecter" }).click();
+  await logoutReq;
+  await expect(page).toHaveURL(/\/mentions-legales$/);
+});
+
+test("déconnexion depuis le mini header", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.route("**/api/auth/logout", (r) =>
+    r.fulfill({ json: { redirectUrl: "http://localhost:3000/mentions-legales" } }));
+  await page.goto("/accueil");
+
+  await page.getByRole("banner").getByRole("button", { name: "Se déconnecter" }).click();
+  await expect(page).toHaveURL(/\/mentions-legales$/);
+});
+
+test("recherche : la modale filtre les outils", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil");
+  await expect(page.getByText("calendar")).toBeVisible();
+
+  await sidebar(page).getByRole("button", { name: "Rechercher" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("searchbox").fill("date");
+  await dialog.getByRole("button", { name: "Rechercher" }).click();
+
+  await expect(page).toHaveURL(/\/accueil\?q=date$/);
+  await expect(page.getByText("datetime")).toBeVisible();
+  await expect(page.getByText("calendar")).toHaveCount(0);
+});
+
+test("recherche sans résultat : affiche un message", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil?q=zzz");
+  await expect(page.getByText("Aucun résultat")).toBeVisible();
+});
+
+// Même fenêtre de thème sur la landing (Header DSFR) et sur l'accueil (mini header)
+for (const [nom, route, connecte] of [["landing", "/", false], ["accueil", "/accueil", true]]) {
+  test(`paramètres d'affichage (${nom}) : ouvre la fenêtre et applique le thème sombre`, async ({ page }) => {
+    if (connecte) await asUserWithTools(page); else await asAnonymous(page);
+    await page.goto(route);
+
+    await page.getByRole("banner").getByRole("button", { name: "Paramètres d'affichage" }).click();
+    const dialog = page.getByRole("dialog", { name: "Paramètres d'affichage" });
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByText("Thème sombre").click();
+    await expect(page.locator("html")).toHaveAttribute("data-fr-theme", "dark");
+
+    await dialog.getByRole("button", { name: "Fermer" }).click();
+    await expect(dialog).toBeHidden();
+  });
+}
+
+test.describe("mobile", () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test("la barre latérale s'ouvre avec le bouton Menu et se ferme", async ({ page }) => {
+    await asUserWithTools(page);
+    await page.goto("/accueil");
+
+    const nav = page.getByRole("navigation", { name: "Navigation principale" });
+    const burger = page.getByRole("button", { name: "Menu" });
+
+    await expect(nav).toBeHidden();
+    await expect(burger).toHaveAttribute("aria-expanded", "false");
+
+    await burger.click();
+    await expect(nav).toBeVisible();
+    await expect(burger).toHaveAttribute("aria-expanded", "true");
+
+    await page.keyboard.press("Escape");
+    await expect(nav).toBeHidden();
+
+    await burger.click();
+    await nav.getByRole("link", { name: "Accueil" }).click();
+    await expect(nav).toBeHidden();
+  });
+});
+
+test("accessibilité : aucune violation sur /accueil", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil");
+  await page.getByText("datetime").waitFor();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations).toEqual([]);
 });
