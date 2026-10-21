@@ -1,18 +1,18 @@
 import { useNavigate } from "react-router";
 import SearchBar from "@codegouvfr/react-dsfr/SearchBar";
-import { searchModal } from "./searchModal";
+import { searchModalJS } from "./searchModalJS";
 
 export default function SearchModal(){
     const navigate = useNavigate();
 
     const onSearch = (text) => {
-        searchModal.close();
+        searchModalJS.close();
         navigate(text ? `/accueil?q=${encodeURIComponent(text)}` : "/accueil");
     };
 
     return(
-        <searchModal.Component title="Rechercher un outil" topAnchor>
+        <searchModalJS.Component title="Rechercher un outil" titleAs="h2" topAnchor>
             <SearchBar label="Rechercher un outil" big allowEmptySearch onButtonClick={onSearch} />
-        </searchModal.Component>
+        </searchModalJS.Component>
     )
 }

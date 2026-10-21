@@ -18,7 +18,7 @@ export default function App() {
         </Route>
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
-          <Route path="/acceuil" element={<Home />}/>
+          <Route path="/accueil" element={<Home />}/>
         </Route>
       </Routes>
     </>
