@@ -14,15 +14,7 @@ const asUser = (p) => p.route("**/api/auth/me", (r) => r.fulfill({ json: USER })
 const settle = (p) => p.evaluate(() => document.fonts.ready); // attend les polices DSFR
 const out = (...parts) => path.join(DOCS, ...parts);
 const full = { fullPage: true, animations: "disabled" };
-
-test("@docs landing anonyme", async ({ page }) => {
-  await asAnonymous(page);
-  await page.goto("/");
-  await settle(page);
-  await page.screenshot({ path: out("pages/landing/anonyme.png"), ...full });
-  await page.getByRole("banner").screenshot({ path: out("components/header/anonyme.png") });
-  await page.getByRole("contentinfo").screenshot({ path: out("components/footer/footer.png") });
-});
+const sidebar = (p) => p.getByRole("complementary", { name: "Barre latérale" });
 
 test("@docs accueil connecté", async ({ page }) => {
   await asUser(page);
@@ -31,7 +23,42 @@ test("@docs accueil connecté", async ({ page }) => {
   await page.getByText("datetime").waitFor();
   await settle(page);
   await page.screenshot({ path: out("pages/accueil/connecte.png"), ...full });
-  await page.getByRole("banner").screenshot({ path: out("components/header/connecte.png") });
+  await sidebar(page).screenshot({ path: out("components/sidebar/connecte.png") });
+  await page.getByRole("banner").screenshot({ path: out("components/topbar/connecte.png") });
+});
+
+test("@docs accueil menu du compte ouvert", async ({ page }) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+  await page.goto("/accueil");
+  await page.getByText("datetime").waitFor();
+  await page.getByRole("button", { name: "user", exact: true }).click();
+  await page.getByRole("group", { name: "Menu du compte" }).waitFor();
+  await settle(page);
+  // la barre latérale entière, car le panneau est positionné au-dessus du bouton
+  await sidebar(page).screenshot({ path: out("components/user-menu/ouvert.png") });
+});
+
+test("@docs accueil modale de recherche", async ({ page }) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+  await page.goto("/accueil");
+  await page.getByText("datetime").waitFor();
+  await sidebar(page).getByRole("button", { name: "Rechercher" }).click();
+  await page.getByRole("dialog").getByRole("searchbox").waitFor();
+  await settle(page);
+  await page.screenshot({ path: out("components/search-modal/ouverte.png"), animations: "disabled" });
+});
+
+test("@docs accueil paramètres d'affichage", async ({ page }) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+  await page.goto("/accueil");
+  await page.getByText("datetime").waitFor();
+  await page.getByRole("banner").getByRole("button", { name: "Paramètres d'affichage" }).click();
+  await page.getByRole("dialog", { name: "Paramètres d'affichage" }).waitFor();
+  await settle(page);
+  await page.screenshot({ path: out("components/display-modal/ouverte.png"), animations: "disabled" });
 });
 
 test("@docs accueil erreur outils", async ({ page }) => {
@@ -40,6 +67,33 @@ test("@docs accueil erreur outils", async ({ page }) => {
   await page.goto("/accueil");
   await page.getByRole("alert").waitFor();
   await page.screenshot({ path: out("pages/accueil/erreur-outils.png"), ...full });
+});
+
+test.describe("mobile", () => {
+  test.use({ viewport: { width: 390, height: 800 } });
+
+  test("@docs accueil mobile", async ({ page }) => {
+    await asUser(page);
+    await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+    await page.goto("/accueil");
+    await page.getByText("datetime").waitFor();
+    await settle(page);
+    await page.screenshot({ path: out("pages/accueil/mobile.png"), ...full });
+
+    await page.getByRole("button", { name: "Menu" }).click();
+    await sidebar(page).waitFor();
+    await settle(page);
+    await page.screenshot({ path: out("pages/accueil/mobile-menu.png"), animations: "disabled" });
+  });
+});
+
+test("@docs landing anonyme", async ({ page }) => {
+  await asAnonymous(page);
+  await page.goto("/");
+  await settle(page);
+  await page.screenshot({ path: out("pages/landing/anonyme.png"), ...full });
+  await page.getByRole("banner").screenshot({ path: out("components/header/anonyme.png") });
+  await page.getByRole("contentinfo").screenshot({ path: out("components/footer/footer.png") });
 });
 
 test("@docs mentions légales", async ({ page }) => {
