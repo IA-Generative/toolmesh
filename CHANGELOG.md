@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.2](https://github.com/IA-Generative/toolmesh/compare/v0.6.1...v0.6.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **backend:** stop checking the audience of incoming tokens ([50c4d43](https://github.com/IA-Generative/toolmesh/commit/50c4d43d2818ff1337e4dffcbc7f9dc630341f50))
+* **frontend:** force full navigation for Keycloak login ([1ba7204](https://github.com/IA-Generative/toolmesh/commit/1ba72048ddc05ae6bb2e289f812feaaa64a4a021))
+
 ## [0.6.1](https://github.com/IA-Generative/toolmesh/compare/v0.6.0...v0.6.1) (2026-10-21)
 
 
