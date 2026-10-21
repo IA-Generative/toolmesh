@@ -18,7 +18,7 @@ Chaque composant (`backend`, `frontend`, `mcp_datetime`) charge des `Secret` dan
 
 ## Où les écrire dans Vault
 
-Deux secrets KV v2. Le premier, `keycloak`, est lu par le backend et le MCP pour qu'ils ne puissent pas diverger sur l'issuer ; le second, `redis`, par le backend.
+Deux secrets KV v2. Le premier, `keycloak`, est lu par le backend et le MCP ; le second, `redis`, par le backend.
 
 ### `keycloak`
 
@@ -33,34 +33,33 @@ Clés à y écrire :
 
 | Clé | Rôle | Backend | MCP datetime |
 |---|---|:-:|:-:|
-| `TOOLMESH_OIDC_ISSUER` | Issuer Keycloak, doit correspondre exactement au claim `iss` des tokens (`https://<keycloak>/realms/<realm>`) | ✔ | |
-| `TOOLMESH_OIDC_AUDIENCE` | Audience attendue dans les tokens entrants du backend | ✔ | |
-| `TOOLMESH_OIDC_CLIENT_ID` | Client confidentiel autorisé à faire du token exchange | ✔ | |
-| `TOOLMESH_OIDC_CLIENT_SECRET` | **Secret** de ce client dans Keycloak | ✔ | |
-| `TOOLMESH_BFF_CLIENT_ID` | Client confidentiel du login navigateur (code + PKCE), `toolmesh-bff` | ✔ | |
-| `TOOLMESH_BFF_CLIENT_SECRET` | **Secret** de ce client dans Keycloak | ✔ | |
-| `MCP_DATETIME_OIDC_ISSUER` | Issuer Keycloak du serveur MCP | | ✔ |
+| `TOOLMESH_KEYCLOAK_URL` | URL de Keycloak, **sans** `/realms/...` (`https://<keycloak>`). Le backend s'en sert pour joindre Keycloak et le navigateur pour s'y connecter | ✔ | |
+| `TOOLMESH_KEYCLOAK_CLIENT_SECRET` | **Secret** du client `toolmesh` (login navigateur, grants password/refresh, token exchange) | ✔ | |
+| `MCP_DATETIME_OIDC_ISSUER` | Issuer Keycloak du serveur MCP (`https://<keycloak>/realms/<realm>`) | | ✔ |
 | `MCP_DATETIME_OIDC_AUDIENCE` | Audience attendue par le serveur MCP (`mcp-datetime`) | | ✔ |
 
-Seuls `TOOLMESH_OIDC_CLIENT_SECRET` et `TOOLMESH_BFF_CLIENT_SECRET` sont réellement secrets ; les autres sont rangés avec lui pour que tout vienne d'une
+L'audience attendue dans les tokens du backend est l'id du client (`toolmesh`) : le client doit avoir un *audience mapper* qui l'ajoute aux tokens.
+
+Le realm (`TOOLMESH_KEYCLOAK_REALM`) et le client (`TOOLMESH_KEYCLOAK_CLIENT_ID`, `toolmesh`) ne sont pas secrets :
+ils sont dans `backend.env` de [`values/common-values.yaml`](values/common-values.yaml), comme pour Muffin. L'issuer
+du backend en est déduit (`<URL>/realms/<realm>`) et doit correspondre exactement au claim `iss` des tokens :
+`MCP_DATETIME_OIDC_ISSUER` doit donc valoir la même chose.
+
+Seul `TOOLMESH_KEYCLOAK_CLIENT_SECRET` est réellement secret ; les autres sont rangés avec lui pour que tout vienne d'une
 seule source.
 
 Exemple (CLI Vault) :
 
 ```bash
 vault kv put exploration/dev/toolmesh/keycloak \
-  TOOLMESH_OIDC_ISSUER="https://keycloak.example.org/realms/toolmesh" \
-  TOOLMESH_OIDC_AUDIENCE="toolmesh" \
-  TOOLMESH_OIDC_CLIENT_ID="toolmesh" \
-  TOOLMESH_OIDC_CLIENT_SECRET="<secret du client Keycloak>" \
-  TOOLMESH_BFF_CLIENT_ID="toolmesh-bff" \
-  TOOLMESH_BFF_CLIENT_SECRET="<secret du client toolmesh-bff>" \
+  TOOLMESH_KEYCLOAK_URL="https://keycloak.example.org" \
+  TOOLMESH_KEYCLOAK_CLIENT_SECRET="<secret du client Keycloak toolmesh>" \
   MCP_DATETIME_OIDC_ISSUER="https://keycloak.example.org/realms/toolmesh" \
   MCP_DATETIME_OIDC_AUDIENCE="mcp-datetime"
 ```
 
-Variables optionnelles à ajouter dans le même secret si Keycloak est joint par une autre adresse dans le cluster :
-`TOOLMESH_OIDC_JWKS_URL`, `TOOLMESH_OIDC_TOKEN_URL`.
+Variable optionnelle à ajouter dans `backend.env` si le navigateur joint Keycloak par une autre adresse que le
+backend : `TOOLMESH_KEYCLOAK_PUBLIC_URL`.
 
 ### `redis`
 
@@ -94,6 +93,6 @@ Le chemin et le montage se règlent dans le fichier d'environnement (`global.vau
 ## Renouveler le client secret
 
 1. Régénérez le secret du client `toolmesh` dans Keycloak (onglet *Credentials*).
-2. Mettez à jour `TOOLMESH_OIDC_CLIENT_SECRET` (ou `TOOLMESH_BFF_CLIENT_SECRET` pour le client `toolmesh-bff`) dans Vault (`vault kv patch ...`).
+2. Mettez à jour `TOOLMESH_KEYCLOAK_CLIENT_SECRET` dans Vault (`vault kv patch ...`).
 3. Attendez le prochain rafraîchissement : le backend redémarre tout seul.
 4. Vérifiez : `kubectl rollout status deployment/toolmesh-backend -n <namespace>`.

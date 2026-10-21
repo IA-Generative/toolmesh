@@ -33,7 +33,7 @@ curl -s http://localhost:8080/realms/toolmesh/protocol/openid-connect/token \
 ## Browser login (BFF)
 
 For a web SPA, the backend acts as its BFF: it runs the OIDC authorization code flow with PKCE against the
-confidential Keycloak client `toolmesh-bff`, keeps the tokens in Redis, and gives the browser only an opaque
+confidential Keycloak client `toolmesh` (via python-keycloak, same client as token exchange), keeps the tokens in Redis, and gives the browser only an opaque
 `HttpOnly` cookie (`toolmesh_session`). Bearer tokens keep working for CLIs and agents, and token exchange is unchanged.
 
 | Endpoint | Role |
@@ -47,7 +47,7 @@ confidential Keycloak client `toolmesh-bff`, keeps the tokens in Redis, and give
 
 The SPA calls the API with `credentials: "include"`. Settings: `TOOLMESH_FRONTEND_URL` (post-login redirect and the
 only CORS origin, default `http://localhost:3000`), `TOOLMESH_BACKEND_PUBLIC_URL`, `TOOLMESH_REDIS_URL`,
-`TOOLMESH_BFF_CLIENT_SECRET`, `TOOLMESH_SESSION_COOKIE_SECURE` (set `true` behind HTTPS).
+`TOOLMESH_KEYCLOAK_URL` / `_PUBLIC_URL` / `_REALM` / `_CLIENT_ID` / `_CLIENT_SECRET`, `TOOLMESH_SESSION_COOKIE_SECURE` (set `true` behind HTTPS).
 
 Try it without a frontend by pointing the post-login redirect at the backend itself:
 

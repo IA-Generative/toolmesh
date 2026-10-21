@@ -21,10 +21,11 @@ services:
       context: ./backend
       target: dev
     environment:
-      TOOLMESH_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
-      TOOLMESH_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
-      TOOLMESH_OIDC_AUDIENCE: toolmesh
-      TOOLMESH_OIDC_TOKEN_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/token
+      TOOLMESH_KEYCLOAK_URL: http://keycloak:8080
+      TOOLMESH_KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      TOOLMESH_KEYCLOAK_REALM: toolmesh
+      TOOLMESH_KEYCLOAK_CLIENT_ID: toolmesh
+      TOOLMESH_KEYCLOAK_CLIENT_SECRET: toolmesh-secret
       TOOLMESH_DOWNSTREAM_URL: http://downstream:8000
       TOOLMESH_MCP_DATETIME_URL: http://mcp-datetime:8000/mcp
       TOOLMESH_REDIS_URL: redis://redis:6379/0
@@ -45,8 +46,9 @@ services:
       target: dev
     command: ["uvicorn", "app.downstream:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     environment:
-      TOOLMESH_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
-      TOOLMESH_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
+      TOOLMESH_KEYCLOAK_URL: http://keycloak:8080
+      TOOLMESH_KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      TOOLMESH_KEYCLOAK_REALM: toolmesh
       TOOLMESH_OIDC_AUDIENCE: downstream-service
     ports:
       - "8020:8000"

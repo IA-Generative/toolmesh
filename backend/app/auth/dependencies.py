@@ -34,7 +34,7 @@ def decode_token(token: str, settings: Settings, jwks_client: PyJWKClient) -> Us
             token,
             signing_key.key,
             algorithms=["RS256"],
-            audience=settings.oidc_audience,
+            audience=settings.audience,
             issuer=settings.oidc_issuer,
             options={"require": ["exp", "iss", "aud", "sub"]},
         )

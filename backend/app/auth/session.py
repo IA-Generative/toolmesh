@@ -7,10 +7,12 @@ from dataclasses import asdict, dataclass
 from functools import lru_cache
 from typing import Annotated
 
-import httpx
 from fastapi import Depends
+from keycloak import KeycloakOpenID
+from keycloak.exceptions import KeycloakError
 from redis.asyncio import Redis
 
+from app.auth.keycloak import get_keycloak_openid
 from app.config import Settings, get_settings
 
 PENDING_PREFIX = "toolmesh:auth:pending:"
@@ -37,9 +39,10 @@ class Session:
 
 
 class SessionStore:
-    def __init__(self, redis: Redis, settings: Settings) -> None:
+    def __init__(self, redis: Redis, settings: Settings, keycloak_openid: KeycloakOpenID) -> None:
         self._redis = redis
         self._settings = settings
+        self._keycloak_openid = keycloak_openid
 
     async def save_pending(self, state: str, pending: PendingAuth) -> None:
         await self._redis.set(f"{PENDING_PREFIX}{state}", json.dumps(asdict(pending)), ex=PENDING_TTL_SECONDS)
@@ -86,19 +89,8 @@ class SessionStore:
 
     async def _refresh(self, session_id: str, session: Session) -> Session | None:
         try:
-            async with httpx.AsyncClient(timeout=10) as client:
-                response = await client.post(
-                    self._settings.token_url,
-                    data={
-                        "grant_type": "refresh_token",
-                        "client_id": self._settings.bff_client_id,
-                        "client_secret": self._settings.bff_client_secret,
-                        "refresh_token": session.refresh_token,
-                    },
-                )
-            response.raise_for_status()
-            token_response = response.json()
-        except (httpx.HTTPError, ValueError):
+            token_response = await self._keycloak_openid.a_refresh_token(session.refresh_token)
+        except KeycloakError:
             await self.delete_session(session_id)
             return None
         session.access_token = token_response["access_token"]
@@ -114,5 +106,8 @@ def _redis(url: str) -> Redis:
     return Redis.from_url(url, decode_responses=True)
 
 
-def get_session_store(settings: Annotated[Settings, Depends(get_settings)]) -> SessionStore:
-    return SessionStore(_redis(settings.redis_url), settings)
+def get_session_store(
+    settings: Annotated[Settings, Depends(get_settings)],
+    keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)],
+) -> SessionStore:
+    return SessionStore(_redis(settings.redis_url), settings, keycloak_openid)

@@ -2,10 +2,12 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from keycloak import KeycloakOpenID
 from pydantic import BaseModel
 
 from app.auth import CurrentUser
 from app.auth.exchange import exchange_token
+from app.auth.keycloak import get_keycloak_openid
 from app.config import Settings, get_settings
 
 router = APIRouter(prefix="/api/mock", tags=["mock"])
@@ -17,10 +19,14 @@ class DownstreamResult(BaseModel):
 
 
 @router.get("/downstream")
-async def call_downstream(user: CurrentUser, settings: Annotated[Settings, Depends(get_settings)]) -> DownstreamResult:
+async def call_downstream(
+    user: CurrentUser,
+    settings: Annotated[Settings, Depends(get_settings)],
+    keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)],
+) -> DownstreamResult:
     """Mock tool invocation: exchange the caller's token, then call the downstream service with it."""
     assert user.token is not None
-    token = await exchange_token(settings, user.token, settings.downstream_audience)
+    token = await exchange_token(keycloak_openid, user.token, settings.downstream_audience)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.get(

@@ -4,14 +4,16 @@ import secrets
 from typing import Annotated
 from urllib.parse import urlencode
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from jwt import PyJWKClient
+from keycloak import KeycloakOpenID
+from keycloak.exceptions import KeycloakError
 from pydantic import BaseModel
 
 from app.auth import CurrentUser, User
 from app.auth.dependencies import decode_token, get_jwks_client
+from app.auth.keycloak import get_keycloak_openid
 from app.auth.session import PendingAuth, SessionStore, get_session_store
 from app.config import Settings, get_settings
 
@@ -49,7 +51,7 @@ async def login(
     await store.save_pending(state, PendingAuth(code_verifier=verifier, next_path=next_path))
     query = urlencode(
         {
-            "client_id": settings.bff_client_id,
+            "client_id": settings.keycloak_client_id,
             "response_type": "code",
             "redirect_uri": settings.callback_url,
             "scope": "openid profile email",
@@ -68,26 +70,19 @@ async def callback(
     settings: Annotated[Settings, Depends(get_settings)],
     store: Annotated[SessionStore, Depends(get_session_store)],
     jwks_client: Annotated[PyJWKClient, Depends(get_jwks_client)],
+    keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)],
 ) -> RedirectResponse:
     pending = await store.pop_pending(state)
     if pending is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid or expired login attempt")
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(
-                settings.token_url,
-                data={
-                    "grant_type": "authorization_code",
-                    "client_id": settings.bff_client_id,
-                    "client_secret": settings.bff_client_secret,
-                    "code": code,
-                    "redirect_uri": settings.callback_url,
-                    "code_verifier": pending.code_verifier,
-                },
-            )
-        response.raise_for_status()
-        token_response = response.json()
-    except (httpx.HTTPError, ValueError) as exc:
+        token_response = await keycloak_openid.a_token(
+            grant_type="authorization_code",
+            code=code,
+            redirect_uri=settings.callback_url,
+            code_verifier=pending.code_verifier,
+        )
+    except KeycloakError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Login failed") from exc
     # Refuse to open a session for a token we would not accept as a bearer.
     decode_token(token_response["access_token"], settings, jwks_client)
@@ -116,30 +111,27 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
-async def _token_request(settings: Settings, data: dict[str, str], *, error: str) -> dict:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.post(
-                settings.token_url,
-                data={"client_id": settings.bff_client_id, "client_secret": settings.bff_client_secret, **data},
-            )
-        response.raise_for_status()
-        return response.json()
-    except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, error) from exc
-
-
 @router.post("/token", summary="Password grant for non-browser clients (scripts, SDK)")
-async def token(credentials: PasswordCredentials, settings: Annotated[Settings, Depends(get_settings)]) -> dict:
+async def token(
+    credentials: PasswordCredentials, keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)]
+) -> dict:
     """Returns Keycloak's token response; use `access_token` as a bearer token."""
-    data = {"grant_type": "password", "username": credentials.username, "password": credentials.password}
-    return await _token_request(settings, data, error="Invalid credentials")
+    try:
+        return await keycloak_openid.a_token(
+            grant_type="password", username=credentials.username, password=credentials.password
+        )
+    except KeycloakError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials") from exc
 
 
 @router.post("/refresh", summary="Refresh grant for non-browser clients (scripts, SDK)")
-async def refresh(body: RefreshRequest, settings: Annotated[Settings, Depends(get_settings)]) -> dict:
-    data = {"grant_type": "refresh_token", "refresh_token": body.refresh_token}
-    return await _token_request(settings, data, error="Invalid refresh token")
+async def refresh(
+    body: RefreshRequest, keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)]
+) -> dict:
+    try:
+        return await keycloak_openid.a_refresh_token(body.refresh_token)
+    except KeycloakError as exc:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid refresh token") from exc
 
 
 @router.post("/logout", summary="End the BFF session and the Keycloak SSO session")
@@ -148,6 +140,7 @@ async def logout(
     response: Response,
     settings: Annotated[Settings, Depends(get_settings)],
     store: Annotated[SessionStore, Depends(get_session_store)],
+    keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)],
 ) -> dict[str, str]:
     """Returns the Keycloak end-session URL; the SPA navigates to it to finish the SSO logout."""
     id_token: str | None = None
@@ -157,20 +150,12 @@ async def logout(
         if session is not None:
             id_token = session.id_token
             try:
-                async with httpx.AsyncClient(timeout=10) as client:
-                    await client.post(
-                        settings.logout_url,
-                        data={
-                            "client_id": settings.bff_client_id,
-                            "client_secret": settings.bff_client_secret,
-                            "refresh_token": session.refresh_token,
-                        },
-                    )
-            except httpx.HTTPError:
+                await keycloak_openid.a_logout(session.refresh_token)
+            except KeycloakError:
                 pass  # The local session is dropped regardless; Keycloak's copy expires on its own.
         await store.delete_session(session_id)
     response.delete_cookie(settings.session_cookie_name)
-    query = {"client_id": settings.bff_client_id, "post_logout_redirect_uri": settings.frontend_url}
+    query = {"client_id": settings.keycloak_client_id, "post_logout_redirect_uri": settings.frontend_url}
     if id_token:
         query["id_token_hint"] = id_token
     return {"redirectUrl": f"{settings.logout_url}?{urlencode(query)}"}

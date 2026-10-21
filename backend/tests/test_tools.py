@@ -41,7 +41,7 @@ def make_token(roles: list[str], *, key: Any = _key, **overrides: Any) -> str:
 
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
-    app.dependency_overrides[get_settings] = lambda: Settings(oidc_issuer=ISSUER, oidc_audience=AUDIENCE)
+    app.dependency_overrides[get_settings] = lambda: Settings(keycloak_url="http://kc.test", oidc_audience=AUDIENCE)
     app.dependency_overrides[get_jwks_client] = lambda: _FakeJwks()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

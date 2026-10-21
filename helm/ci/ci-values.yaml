@@ -1,9 +1,9 @@
 backend:
   env:
-    TOOLMESH_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
-    TOOLMESH_OIDC_AUDIENCE: "toolmesh"
-    TOOLMESH_OIDC_CLIENT_ID: "toolmesh"
-    TOOLMESH_OIDC_CLIENT_SECRET: "ci-dummy-secret"
+    TOOLMESH_KEYCLOAK_URL: "https://keycloak.example.com"
+    TOOLMESH_KEYCLOAK_REALM: "toolmesh"
+    TOOLMESH_KEYCLOAK_CLIENT_ID: "toolmesh"
+    TOOLMESH_KEYCLOAK_CLIENT_SECRET: "ci-dummy-secret"
 mcp_datetime:
   env:
     MCP_DATETIME_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"

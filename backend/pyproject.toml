@@ -4,14 +4,15 @@ version = "0.6.0"
 description = "toolmesh backend"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.143.0",
+    "fastapi>=0.156.8",
     "uvicorn[standard]>=0.54.0",
     "pydantic>=2.14.1",
-    "pyjwt[crypto]>=2.10",
-    "pydantic-settings>=2.7",
+    "pyjwt[crypto]>=2.15.1",
+    "pydantic-settings>=2.16.1",
     "httpx>=0.28.1",
     "mcp>=2.0",
     "redis>=5.2",
+    "python-keycloak>=7.1.1",
 ]
 
 [dependency-groups]

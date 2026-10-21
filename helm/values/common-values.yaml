@@ -51,9 +51,10 @@ backend:
         name: "toolmesh-redis"
   # Plain (non-secret) app config - see the backend settings for the full contract.
   env:
-    # Uncomment when Keycloak is reached through another address inside the cluster.
-    # TOOLMESH_OIDC_JWKS_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/certs"
-    # TOOLMESH_OIDC_TOKEN_URL: "http://keycloak.keycloak.svc/realms/toolmesh/protocol/openid-connect/token"
+    TOOLMESH_KEYCLOAK_REALM: "toolmesh"
+    TOOLMESH_KEYCLOAK_CLIENT_ID: "toolmesh"
+    # Uncomment when the browser reaches Keycloak through another address than TOOLMESH_KEYCLOAK_URL (in Vault).
+    # TOOLMESH_KEYCLOAK_PUBLIC_URL: "https://keycloak.example.org"
     # Browser login (BFF): the SPA and the backend share one origin, so the session cookie is first-party.
     TOOLMESH_FRONTEND_URL: "https://toolmesh.example.org"
     TOOLMESH_BACKEND_PUBLIC_URL: "https://toolmesh.example.org"
@@ -116,11 +117,10 @@ mcp_datetime:
       memory: "256Mi"
 
 extraObjects:
-  # Vault keys: TOOLMESH_OIDC_ISSUER, TOOLMESH_OIDC_AUDIENCE, TOOLMESH_OIDC_CLIENT_ID,
-  # TOOLMESH_OIDC_CLIENT_SECRET (the secret of the `toolmesh` confidential client, used for token exchange),
-  # TOOLMESH_BFF_CLIENT_ID, TOOLMESH_BFF_CLIENT_SECRET (the `toolmesh-bff` client of the browser login),
-  # MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_AUDIENCE. One secret for every component, so the backend
-  # and the MCP server can never disagree on the issuer.
+  # Vault keys: TOOLMESH_KEYCLOAK_URL, TOOLMESH_KEYCLOAK_CLIENT_SECRET (the secret of the `toolmesh` confidential
+  # client: browser login, password/refresh grants and token exchange),
+  # MCP_DATETIME_OIDC_ISSUER, MCP_DATETIME_OIDC_AUDIENCE. One secret for every component. The realm and the
+  # client id are plain config, set in the `backend.env` above.
   toolmesh-keycloak:
     apiVersion: secrets.hashicorp.com/v1beta1
     kind: VaultStaticSecret

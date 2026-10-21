@@ -7,26 +7,24 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="TOOLMESH_", env_file=".env", extra="ignore")
 
-    # OIDC provider (Keycloak). The issuer must match the `iss` claim exactly.
-    oidc_issuer: str = "http://localhost:8080/realms/toolmesh"
-    # Optional: fetch JWKS from another URL than <issuer>/protocol/openid-connect/certs
-    # (useful when the backend reaches Keycloak through a different hostname, e.g. in docker).
-    oidc_jwks_url: str | None = None
-    oidc_token_url: str | None = None
-    oidc_audience: str = "toolmesh"
+    # Keycloak. `keycloak_url` is how the backend reaches it (e.g. the Docker service name); the browser-facing
+    # `keycloak_public_url` defaults to it. The issuer, built from the public URL, must match the tokens' `iss` claim.
+    keycloak_url: str = "http://localhost:8080"
+    keycloak_public_url: str | None = None
+    keycloak_realm: str = "toolmesh"
+    # One confidential client for the browser login (code + PKCE), the password/refresh grants and token exchange.
+    keycloak_client_id: str = "toolmesh"
+    keycloak_client_secret: str = "toolmesh-secret"
+    # Audience expected in incoming bearer tokens; defaults to the client id (the mock downstream overrides it).
+    oidc_audience: str | None = None
 
-    # Confidential client used for token exchange (RFC 8693) towards downstream services.
-    oidc_client_id: str = "toolmesh"
-    oidc_client_secret: str = "toolmesh-secret"
     downstream_url: str = "http://localhost:8020"
     downstream_audience: str = "downstream-service"
     mcp_datetime_url: str = "http://localhost:8030/mcp"
     mcp_datetime_audience: str = "mcp-datetime"
 
-    # BFF (browser login): confidential client running the authorization code flow with PKCE.
+    # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
-    bff_client_id: str = "toolmesh-bff"
-    bff_client_secret: str = "toolmesh-bff-secret"
     redis_url: str = "redis://localhost:6379/0"
     # Origin of the SPA: target of the post-login redirect and the only CORS origin allowed.
     frontend_url: str = "http://localhost:3000"
@@ -36,6 +34,18 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     session_ttl_seconds: int = 28800
+
+    @property
+    def audience(self) -> str:
+        return self.oidc_audience or self.keycloak_client_id
+
+    @property
+    def public_url(self) -> str:
+        return self.keycloak_public_url or self.keycloak_url
+
+    @property
+    def oidc_issuer(self) -> str:
+        return f"{self.public_url}/realms/{self.keycloak_realm}"
 
     @property
     def callback_url(self) -> str:
@@ -51,11 +61,7 @@ class Settings(BaseSettings):
 
     @property
     def jwks_url(self) -> str:
-        return self.oidc_jwks_url or f"{self.oidc_issuer}/protocol/openid-connect/certs"
-
-    @property
-    def token_url(self) -> str:
-        return self.oidc_token_url or f"{self.oidc_issuer}/protocol/openid-connect/token"
+        return f"{self.keycloak_url}/realms/{self.keycloak_realm}/protocol/openid-connect/certs"
 
 
 @lru_cache
