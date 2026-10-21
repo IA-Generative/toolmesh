@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.6.0-rc](https://github.com/IA-Generative/toolmesh/compare/v0.5.0...v0.6.0-rc) (2026-10-21)
+
+
+### Features
+
+* **front:** add app layout with sidebar, topbar and user menu ([bc24a6e](https://github.com/IA-Generative/toolmesh/commit/bc24a6e0db76af6975bc4223a0f5e2f89269b04e))
+* **front:** add home page, protected routes and 404 page ([9ad2f0b](https://github.com/IA-Generative/toolmesh/commit/9ad2f0b2545f2c57668f3f45969dc3a35996f06a))
+* **front:** prepare new layout and search modal ([ae534d4](https://github.com/IA-Generative/toolmesh/commit/ae534d4469dbb65db52e9745364e631138def88a))
+
 ## [0.5.0](https://github.com/IA-Generative/toolmesh/compare/v0.4.0...v0.5.0) (2026-10-20)
 
 
