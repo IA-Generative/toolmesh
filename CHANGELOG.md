@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/IA-Generative/toolmesh/compare/v0.6.0...v0.6.1) (2026-10-21)
+
+
+### Code Refactoring
+
+* **backend:** use python-keycloak with a single Keycloak client ([ab2e8d5](https://github.com/IA-Generative/toolmesh/commit/ab2e8d5cc2805be16cefb442305cf7df9889839b))
+
 ## [0.6.0](https://github.com/IA-Generative/toolmesh/compare/v0.5.0...v0.6.0) (2026-10-21)
 
 
