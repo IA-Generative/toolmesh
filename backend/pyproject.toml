@@ -1,6 +1,6 @@
 [project]
 name = "toolmesh-backend"
-version = "0.6.0-rc"
+version = "0.6.0"
 description = "toolmesh backend"
 requires-python = ">=3.12"
 dependencies = [
