@@ -8,6 +8,7 @@ export default defineConfig({
    },
   webServer: {
     command: "bun run dev",
+    env: { VITE_API_URL: "" },
     url: "http://localhost:3000",
     reuseExistingServer: true,
   },

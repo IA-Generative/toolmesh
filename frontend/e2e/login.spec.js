@@ -26,6 +26,25 @@ test("anonyme : les boutons Se connecter visent /accueil", async ({ page }) => {
   await expect(page.getByRole("main").getByRole("link", { name: "Se connecter" })).toHaveAttribute("href", href);
 });
 
+for (const region of ["banner", "main"]) {
+  test(`connexion (${region}) : navigation complète vers le backend`, async ({ page }) => {
+    await asAnonymous(page);
+    await page.route("**/api/auth/login**", (route) =>
+      route.fulfill({ contentType: "text/html", body: "<h1>Login backend</h1>" }));
+    await page.goto("/");
+
+    const link = page.getByRole(region).getByRole("link", { name: "Se connecter" });
+    await expect(link).toHaveAttribute("href", "/api/auth/login?redirect=%2Faccueil");
+    const loginRequest = page.waitForRequest((request) =>
+      request.isNavigationRequest() && request.url().includes("/api/auth/login?redirect=%2Faccueil"));
+    await link.click();
+    await loginRequest;
+
+    await expect(page).toHaveURL(/\/api\/auth\/login\?redirect=%2Faccueil$/);
+    await expect(page.getByRole("heading", { name: "Login backend" })).toBeVisible();
+  });
+}
+
 test("connecté sur / : redirigé vers /accueil", async ({ page }) => {
   await asUser(page);
   await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));

@@ -14,7 +14,7 @@ export default function Landing() {
         son identité ni lui donner plus de droits que prévu.
       </p>
       {status === "anonymous" && (
-        <Button linkProps={{ href: loginUrl() }} iconId="fr-icon-user-fill">
+        <Button linkProps={{ href: loginUrl(), reloadDocument: true }} iconId="fr-icon-user-fill">
           Se connecter
         </Button>
       )}

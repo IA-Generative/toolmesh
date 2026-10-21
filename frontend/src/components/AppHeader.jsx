@@ -9,7 +9,7 @@ export default function AppHeader() {
     status === "authenticated"
       ? [{ iconId: "fr-icon-logout-box-r-line", text: "Se déconnecter", buttonProps: { onClick: logout } }]
       : status === "anonymous"
-        ? [{ iconId: "fr-icon-user-fill", text: "Se connecter", linkProps: { href: loginUrl() } }]
+        ? [{ iconId: "fr-icon-user-fill", text: "Se connecter", linkProps: { href: loginUrl(), reloadDocument: true } }]
         : [];
 
   return (
@@ -21,4 +21,3 @@ export default function AppHeader() {
     />
   );
 }
-

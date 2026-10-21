@@ -1,4 +1,22 @@
-# React + Vite
+# Frontend ToolMesh
+
+## Connexion Keycloak
+
+Les liens de connexion de la page publique et du header doivent conserver
+`reloadDocument: true` dans leurs `linkProps`. Avec une API sur la même origine
+(`VITE_API_URL=""`, comme dans l'image Docker), React Router intercepterait sinon
+`/api/auth/login` comme une route de la SPA et afficherait une page 404 au lieu
+de laisser le backend rediriger le navigateur vers Keycloak.
+
+Les tests Playwright utilisent cette configuration même origine et vérifient
+que le clic sur chacun des deux liens déclenche une navigation complète vers
+le backend (réponse simulée), et non une navigation interne à la SPA :
+
+```bash
+bun run test:e2e e2e/login.spec.js
+```
+
+## React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
