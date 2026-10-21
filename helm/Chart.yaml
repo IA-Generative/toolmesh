@@ -1,8 +1,8 @@
 apiVersion: v2
 name: helm
 type: application
-version: 0.6.1
-appVersion: "0.6.1"
+version: 0.6.2
+appVersion: "0.6.2"
 description: A Helm chart to deploy toolmesh (backend, datetime MCP server).
 kubeVersion: ">=1.25.0-0"
 deprecated: false
