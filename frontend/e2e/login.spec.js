@@ -14,6 +14,10 @@ const asUserWithTools = async (page) => {
   await asUser(page);
   await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
 };
+const asUserWithNoTools = async (page) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: { ...TOOLS, tools: [] } }));
+};
 const sidebar = (page) => page.getByRole("complementary", { name: "Barre latérale" });
 const asAnonymous = (page) => page.route(ME, (r) => r.fulfill({ status: 401, json: {} }));
 const asUser = (page) => page.route(ME, (r) => r.fulfill({ json: USER }));
@@ -212,4 +216,43 @@ test("accessibilité : aucune violation sur /accueil", async ({ page }) => {
   await page.getByText("datetime").waitFor();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
+});
+
+test("recherche en direct : filtre pendant la saisie et synchronise l'URL", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil");
+
+  const champ = page.getByRole("searchbox", { name: "Rechercher un outil" });
+  await champ.fill("DATE");                                    // casse ignorée
+  await expect(page.getByText("datetime")).toBeVisible();
+  await expect(page.getByText("calendar")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/accueil\?q=DATE$/);
+  await expect(page.getByRole("status").filter({ hasText: "sur" })).toBeVisible();
+
+  await page.reload();                                         // le filtre survit au rechargement
+  await expect(champ).toHaveValue("DATE");
+  await expect(page.getByText("calendar")).toHaveCount(0);
+});
+
+test("recherche en direct : Échap et « Effacer » vident le champ et rendent le focus", async ({ page }) => {
+  await asUserWithTools(page);
+  await page.goto("/accueil?q=date");
+  const champ = page.getByRole("searchbox", { name: "Rechercher un outil" });
+
+  await page.getByRole("button", { name: "Effacer" }).click();
+  await expect(champ).toHaveValue("");
+  await expect(champ).toBeFocused();
+  await expect(page.getByText("calendar")).toBeVisible();
+
+  await champ.fill("zzz");
+  await expect(page.getByText("Aucun résultat")).toBeVisible();
+  await champ.press("Escape");
+  await expect(champ).toHaveValue("");
+});
+
+test("recherche en direct : barre absente si le compte n'a aucun outil", async ({ page }) => {
+  await asUserWithNoTools(page);
+  await page.goto("/accueil");
+  await expect(page.getByText("Aucun outil disponible")).toBeVisible();   // le chargement est terminé
+  await expect(page.getByRole("searchbox")).toHaveCount(0);
 });

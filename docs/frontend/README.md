@@ -9,6 +9,7 @@ Générées par `cd frontend && bun run docs:screenshots`.
 | Accueil (erreur)        | ![](pages/accueil/erreur-outils.png)      |
 | Accueil (mobile)        | ![](pages/accueil/mobile.png)             |
 | Accueil (menu mobile)   | ![](pages/accueil/mobile-menu.png)        |
+| Accueil (avec filtre)   | ![](pages/accueil/filtre.png)             |
 | Mentions légales        | ![](pages/mentions-legales/page.png)      |
 | Page 404                | ![](pages/404/page.png)                   |
 | Header (anonyme)        | ![](components/header/anonyme.png)        |
