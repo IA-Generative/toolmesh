@@ -25,3 +25,9 @@ export async function fetchMyTools() {
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
   return res.json(); // { user, roles, tools: [{ name, description, source, type, required_role }] }
 }
+
+export async function fetchVersion(){
+  const res = await fetch(`${API_URL}/api/health`);
+  if(!res.ok) throw new Error(`/health: ${res.status}`);
+  return (await res.json()).version;
+}
