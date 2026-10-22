@@ -117,3 +117,12 @@ test("@docs page 404", async ({ page }) => {
   await settle(page);
   await page.screenshot({ path: out("pages/404/page.png"), ...full });
 });
+
+test("@docs accueil avec filtre", async ({ page }) => {
+  await asUser(page);
+  await page.route("**/api/me/tools", (r) => r.fulfill({ json: TOOLS }));
+  await page.goto("/accueil?q=date");
+  await page.getByText("datetime").waitFor();
+  await settle(page);
+  await page.screenshot({ path: out("pages/accueil/filtre.png"), ...full });
+});
