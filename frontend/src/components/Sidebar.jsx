@@ -1,8 +1,11 @@
 import { Link, NavLink } from "react-router";
 import UserMenu from "./UserMenu";
 import { searchModalJS } from "./searchModalJS";
+import useAppVersion from "./useAppVersion";
 
 export default function Sidebar({ id, open, onNavigate }) {
+  const version = useAppVersion();
+
   return (
     <aside
       id={id}
@@ -44,6 +47,7 @@ export default function Sidebar({ id, open, onNavigate }) {
       <ul className="app-sidebar__legal fr-text--xs">
         <li><Link to="/mentions-legales" onClick={onNavigate}>Mentions légales</Link></li>
         <li>Accessibilité : non conforme</li>
+        {version && <li>Version {version}</li>}
       </ul>
     </aside>
   );
