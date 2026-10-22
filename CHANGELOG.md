@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/IA-Generative/toolmesh/compare/v0.6.2...v0.7.0) (2026-10-22)
+
+
+### Features
+
+* **docs:** new screenshots ([3ddb0ca](https://github.com/IA-Generative/toolmesh/commit/3ddb0cadafeb8bf22edc494bf61e5990165ee41a))
+* **front:** add useAppVersion component and add fetchVersion ([3693bbe](https://github.com/IA-Generative/toolmesh/commit/3693bbed873870f05e9ac35b13dfa54f8565e930))
+* **front:** add version in Sidebar and Footer ([bef26c0](https://github.com/IA-Generative/toolmesh/commit/bef26c06a3ed28859c000cfa47a77b2e60dc7f94))
+
+
+### Bug Fixes
+
+* **docs:** add version in screenshots ([71b1827](https://github.com/IA-Generative/toolmesh/commit/71b18278bb5ed3ff633fbd8224f734595a0ef1d6))
+* **docs:** regenerate screenshots after rebase ([25e98cd](https://github.com/IA-Generative/toolmesh/commit/25e98cd7dd292c2a064affc56a52b4942f1332ad))
+* **front:** remove bullits in home page and put footer at bottom landing page ([bc36f63](https://github.com/IA-Generative/toolmesh/commit/bc36f63a024c6c1232ad328ea5b1de2b6d35d2e8))
+
 ## [0.7.0-rc](https://github.com/IA-Generative/toolmesh/compare/v0.6.2...v0.7.0-rc) (2026-10-22)
 
 
