@@ -8,13 +8,20 @@ const TOOLS = {
   user: "user", roles: ["user"],
   tools: [{ name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null }],
 };
+const VERSION = "1.2.3"; // valeur fictive : les captures restent stables d'une release à l'autre
 
 const asAnonymous = (p) => p.route("**/api/auth/me", (r) => r.fulfill({ status: 401, json: {} }));
 const asUser = (p) => p.route("**/api/auth/me", (r) => r.fulfill({ json: USER }));
-const settle = (p) => p.evaluate(() => document.fonts.ready); // attend les polices DSFR
+const settle = async (p) => {
+      await p.evaluate(() => document.fonts.ready);
+      await p.getByText(`Version ${VERSION}`).first().waitFor({ state: "attached" });
+}; // attend les polices DSFR et la version (footer public ou barre latérale)
 const out = (...parts) => path.join(DOCS, ...parts);
 const full = { fullPage: true, animations: "disabled" };
 const sidebar = (p) => p.getByRole("complementary", { name: "Barre latérale" });
+
+test.beforeEach(({ page }) =>
+  page.route("**/api/health", (r) => r.fulfill({ json: { status: "ok", version: VERSION } })));
 
 test("@docs accueil connecté", async ({ page }) => {
   await asUser(page);
