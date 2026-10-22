@@ -38,10 +38,9 @@ export default function Home() {
       )}
 
       {visible?.length > 0 && (
-        <div className="fr-grid-row fr-grid-row--gutters">
+        <ul className="fr-grid-row fr-grid-row--gutters fr-raw-list">
           {visible.map((t) => (
-            <ul key={t.name} className="fr-col-12 fr-col-md-6 fr-col-lg-4">
-              <li>
+              <li key={t.name} className="fr-col-12 fr-col-md-6 fr-col-lg-4">
                 <Tile
                   title={t.name}
                   titleAs="h2"
@@ -50,9 +49,8 @@ export default function Home() {
                   detail={t.required_role ? `Rôle requis : ${t.required_role}` : "Accessible à tous"}
                 />
               </li>
-            </ul>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
