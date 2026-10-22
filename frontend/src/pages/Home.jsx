@@ -1,27 +1,35 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import Badge from "@codegouvfr/react-dsfr/Badge";
 import Tile from "@codegouvfr/react-dsfr/Tile";
+import Button from "@codegouvfr/react-dsfr/Button";
+import Input from "@codegouvfr/react-dsfr/Input";
 import { useAuth } from "../auth/AuthContext";
 import { fetchMyTools } from "../auth/api";
+import { filterTools, TYPE_LABELS } from "../tools/tools";
 
-const TYPE_LABELS = { mcp: "Serveur MCP", api: "API", skill: "Skill" };
+const plural = (n) => `${n} outil${n > 1 ? "s" : ""}`;
 
 export default function Home() {
   const { user } = useAuth();
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const [tools, setTools] = useState(null);
   const [error, setError] = useState(null);
-  const q = (params.get("q") ?? "").trim().toLowerCase();
+  const inputRef = useRef(null)
+  const q = params.get("q") ?? ""; // l'URL reste la seule source de vérité
+
+  const setQuery = (value) =>
+    setParams(value ? {q: value} : {}, { replace: true}) // pas d'entrée d'historique
+
+  const clear = () =>{ setQuery(""); inputRef.current?.focus()};
+
+  const visible = tools && filterTools(tools, q);
 
   useEffect(() => {
     fetchMyTools().then((d) => setTools(d.tools)).catch((e) => setError(e.message));
   }, []);
 
-  const visible = tools?.filter(
-    (t) => !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q),
-  );
 
   return (
     <div>
@@ -33,6 +41,30 @@ export default function Home() {
       {tools?.length === 0 && (
         <Alert severity="info" title="Aucun outil disponible" description="Votre compte n'a accès à aucun outil pour le moment." />
       )}
+
+      {tools?.length > 0 && (
+        <search aria-label="Rechercher un outil" className="fr-mb-3w">
+          <Input
+            label="Rechercher un outil"
+            nativeInputProps={{
+              ref: inputRef,
+              type: "search",
+              value: q,
+              onChange: (e) => setQuery(e.target.value),
+              onKeyDown: (e) => e.key === "Escape" && clear(),
+            }}
+          />
+          {q && (
+            <Button priority="tertiary no outline" iconId="fr-icon-close-line" onClick={clear}>
+              Effacer
+            </Button>
+          )}
+          <p role="status" className="fr-text--sm">
+            {q ? `${plural(visible.length)} sur ${tools.length}` : plural(tools.length)}
+          </p>
+        </search>
+      )}
+
       {tools?.length > 0 && visible.length === 0 && (
         <Alert severity="info" title="Aucun résultat" description={`Aucun outil ne correspond à « ${params.get("q")} ».`} />
       )}
