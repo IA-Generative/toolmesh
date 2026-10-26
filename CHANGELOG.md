@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.0](https://github.com/IA-Generative/toolmesh/compare/v0.9.0...v0.10.0) (2026-10-26)
+
+
+### Features
+
+* **chart:** deploy mcp-search with a bundled SearXNG ([425851d](https://github.com/IA-Generative/toolmesh/commit/425851df89b668fff9afb0ab71209b833e6f64a4))
+* **mcp-search:** add a web search MCP server backed by SearXNG ([e12e8a8](https://github.com/IA-Generative/toolmesh/commit/e12e8a8dbbe3f7437fa303f957012e55c2d9c7fd))
+
+
+### Bug Fixes
+
+* **auth:** make the token exchange work against Keycloak 26 ([945f21a](https://github.com/IA-Generative/toolmesh/commit/945f21abbe68fe393950817992a9c2944b323802))
+
 ## [0.9.0](https://github.com/IA-Generative/toolmesh/compare/v0.8.0...v0.9.0) (2026-10-26)
 
 
