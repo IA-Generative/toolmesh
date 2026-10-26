@@ -8,7 +8,7 @@ class User(BaseModel):
     username: str | None = None
     email: str | None = None
     roles: list[str] = []
-    # Raw bearer token, kept so it can be exchanged for downstream calls. Never serialized.
+    # Raw bearer token, kept so it can be exchanged for calls to the registered services. Never serialized.
     token: str | None = Field(default=None, exclude=True, repr=False)
 
     @property

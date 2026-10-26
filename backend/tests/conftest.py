@@ -8,9 +8,9 @@ from sqlalchemy.pool import StaticPool
 from app.auth.dependencies import get_jwks_client
 from app.config import Settings, get_settings
 from app.db.models import Base
-from app.db.seed import seed_demo_data
 from app.db.session import get_db
 from app.main import app
+from tests.registry_data import seed_test_registry
 from tests.test_tools import _FakeJwks
 
 
@@ -44,9 +44,9 @@ def _registry_db(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIter
 
 @pytest.fixture
 async def client(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIterator[AsyncClient]:
-    """API client with a valid-token setup and the demo registry loaded."""
+    """API client with a valid-token setup and the test registry loaded."""
     async with session_factory() as db:
-        await seed_demo_data(db)
+        await seed_test_registry(db)
 
     app.dependency_overrides[get_settings] = lambda: Settings(keycloak_url="http://kc.test")
     app.dependency_overrides[get_jwks_client] = lambda: _FakeJwks()

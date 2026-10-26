@@ -41,11 +41,8 @@ services:
       TOOLMESH_KEYCLOAK_REALM: toolmesh
       TOOLMESH_KEYCLOAK_CLIENT_ID: toolmesh
       TOOLMESH_KEYCLOAK_CLIENT_SECRET: toolmesh-secret
-      TOOLMESH_DOWNSTREAM_URL: http://downstream:8000
-      TOOLMESH_MCP_DATETIME_URL: http://mcp-datetime:8000/mcp
       TOOLMESH_REDIS_URL: redis://redis:6379/0
       TOOLMESH_DATABASE_URL: postgresql+asyncpg://toolmesh:toolmesh@postgres:5432/toolmesh
-      TOOLMESH_SEED_DEMO_DATA: "true"
       # Sources to discover live on the compose network (private addresses).
       TOOLMESH_DISCOVERY_ALLOW_PRIVATE_HOSTS: "true"
       TOOLMESH_FRONTEND_URL: ${TOOLMESH_FRONTEND_URL:-http://localhost:3000}
@@ -61,24 +58,6 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
-
-  # Mock downstream service: accepts only tokens with audience `downstream-service`.
-  downstream:
-    build:
-      context: ./backend
-      target: dev
-    command: ["uvicorn", "app.downstream:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    environment:
-      TOOLMESH_KEYCLOAK_URL: http://keycloak:8080
-      TOOLMESH_KEYCLOAK_PUBLIC_URL: http://localhost:8080
-      TOOLMESH_KEYCLOAK_REALM: toolmesh
-      TOOLMESH_OIDC_AUDIENCE: downstream-service
-    ports:
-      - "8020:8000"
-    volumes:
-      - ./backend/app:/app/app
-    depends_on:
-      - keycloak
 
   # Standalone MCP server (dates / periods), streamable HTTP on /mcp.
   mcp-datetime:

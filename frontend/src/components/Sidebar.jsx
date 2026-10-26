@@ -61,7 +61,7 @@ export default function Sidebar({ id, open, onNavigate }) {
                   <span className={`${TYPE_ICONS[h.type] ?? "fr-icon-settings-5-line"} fr-icon--sm`} aria-hidden="true" />
                   <span className="app-sidebar__entry-text">
                     <span className="app-sidebar__entry-name">{h.tool}</span>
-                    <span className="app-sidebar__entry-meta">{timeAgo(h.at)} · {h.ms} ms</span>
+                    <span className="app-sidebar__entry-meta">{timeAgo(h.at)} · {h.ms} ms{h.ok === false ? " · échec" : ""}</span>
                   </span>
                 </Link>
               </li>

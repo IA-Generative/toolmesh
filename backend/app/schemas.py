@@ -16,6 +16,8 @@ class ToolIn(BaseModel):
     method: str | None = None
     path: str | None = None
     input_schema: dict[str, Any] | None = None
+    # Name on the server when `name` was changed to be unique; set by the discovery, not by clients.
+    remote_name: str | None = None
 
 
 class SourceIn(BaseModel):

@@ -66,3 +66,15 @@ export async function discoverTools(payload) {
   if (!res.ok) throw new Error(await errorMessage(res));
   return (await res.json()).tools; // [{ name, description, tags, method, path, input_schema }]
 }
+
+// Exécute un outil pour l'utilisateur connecté.
+export async function callTool(name, args, model = null) {
+  const res = await fetch(`${API_URL}/api/me/tools/${encodeURIComponent(name)}/call`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ arguments: args, model }),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res));
+  return res.json(); // { ok, status, content_type, content, truncated, duration_ms }
+}

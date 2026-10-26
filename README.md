@@ -28,7 +28,10 @@ curl -s http://localhost:8080/realms/toolmesh/protocol/openid-connect/token \
   -d grant_type=client_credentials -d client_id=toolmesh-agent -d client_secret=toolmesh-agent-secret
 ```
 
-`GET /api/me/tools` returns mock tools filtered by the caller's realm roles: `user` sees 3, `admin` sees all 5.
+`GET /api/me/tools` lists the tools of the registry (PostgreSQL) visible to the caller: a source can require a realm role.
+The registry starts empty: add sources from the app (http://localhost:3000, "Ajouter un outil") or with `POST /api/sources`,
+for example the MCP servers of this stack (`mcp-datetime`, `mcp-search`, see below). `POST /api/me/tools/{name}/call`
+runs a tool as the caller (the "Tester" button of the app); skills cannot be run yet, as no model provider is configured.
 
 ## Browser login (BFF)
 
@@ -64,16 +67,16 @@ Scripts: `curl -s -X POST localhost:8010/api/auth/token -H 'Content-Type: applic
 
 ## Forwarding identity to another service (token exchange)
 
-`GET /api/mock/downstream` shows the pattern: toolmesh swaps the caller's token for a new one
-scoped to the downstream service (RFC 8693) and calls the mock service on :8020 with it.
-The downstream only accepts tokens with audience `downstream-service`. A token from a dev client such as
-`toolmesh-cli` is rejected there (`curl -H "Authorization: Bearer $CLI_TOKEN" localhost:8020/whoami` → 401).
-A token issued to the `toolmesh` client itself (browser login, `/api/auth/token`) is **also accepted**: that client
-must be allowed to exchange for the target (see below), and the allowed roles end up in its own tokens too.
+A source registered with the authentication "Token exchange" (and an audience) is called with a token toolmesh obtains by
+swapping the caller's one for a token scoped to that audience (RFC 8693), for the discovery of its tools
+(`POST /api/sources/discover`) as well as for running them. The target only accepts tokens with its own audience: a
+token from a dev client such as `toolmesh-cli` is rejected by `mcp-datetime` (401). A token issued to the `toolmesh`
+client itself (browser login, `/api/auth/token`) is **also accepted**: that client must be allowed to exchange for the
+target (see below), and the allowed roles end up in its own tokens too.
 
 Keycloak setup (see `keycloak/toolmesh-realm.json`): confidential client `toolmesh` with
-`standard.token.exchange.enabled` (requires Keycloak ≥ 26.2), client `downstream-service` and its
-client role `access`, granted to the users. The `toolmesh` client has `fullScopeAllowed=false`, so each exchange
+`standard.token.exchange.enabled` (requires Keycloak ≥ 26.2), the exchange targets (`mcp-datetime`, `mcp-search`), each with a
+client role `access` granted to the users. The `toolmesh` client has `fullScopeAllowed=false`, so each exchange
 target's `access` role is added to its scope (`clientScopeMappings`): without it Keycloak answers
 `Requested audience not available`. Adding a new exchange target therefore means a client, its `access` role, the
 role granted to the users, and a `clientScopeMappings` entry for `toolmesh`. The dev clients (`toolmesh-cli`,
@@ -90,7 +93,7 @@ the container (`docker compose up -d --force-recreate keycloak`) for the change 
 `mcp-datetime/` is a standalone MCP server (own project, Dockerfile and tests) for dates and periods:
 `now`, `convert_timezone`, `add_to_date`, `date_diff`, `weekday`, `period_bounds`, `business_days`,
 `add_business_days`. It is started by `docker compose up -d --build` and serves streamable HTTP on
-http://localhost:8030/mcp. Its `/mcp` endpoint requires a Keycloak token with audience `mcp-datetime` (401 otherwise). Its only purpose here is to exercise token exchange: `GET /api/mock/mcp-datetime?date=2026-10-13&kind=month` on toolmesh exchanges the caller's token and calls `period_bounds` on it. Tests: `cd mcp-datetime && uv run pytest`.
+http://localhost:8030/mcp. Its `/mcp` endpoint requires a Keycloak token with audience `mcp-datetime` (401 otherwise). Register it as a source of type MCP (URL `http://mcp-datetime:8000/mcp`, authentication "Token exchange", audience `mcp-datetime`) to try the token exchange. Tests: `cd mcp-datetime && uv run pytest`.
 
 ## MCP search (separate service)
 

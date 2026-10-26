@@ -55,6 +55,8 @@ class Tool(Base):
     method: Mapped[str | None] = mapped_column(String(10))
     path: Mapped[str | None] = mapped_column(String(2048))
     input_schema: Mapped[dict | None] = mapped_column(JSON)
+    # Name the tool has on its server when it was renamed here to stay unique (`<source>.<tool>`); None otherwise.
+    remote_name: Mapped[str | None] = mapped_column(String(100))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     source: Mapped[Source] = relationship(back_populates="tools")
