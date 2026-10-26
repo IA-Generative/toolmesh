@@ -1,6 +1,6 @@
 [project]
 name = "toolmesh-mcp-datetime"
-version = "0.8.0"
+version = "0.9.0"
 description = "Standalone MCP server for dates, times and periods"
 requires-python = ">=3.12"
 dependencies = [

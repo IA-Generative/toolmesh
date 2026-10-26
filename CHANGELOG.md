@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/IA-Generative/toolmesh/compare/v0.8.0...v0.9.0) (2026-10-26)
+
+
+### Features
+
+* **backend:** discover the tools of MCP servers and OpenAPI specs ([7eb0b27](https://github.com/IA-Generative/toolmesh/commit/7eb0b27c5bbab9821cd7104ebd2b732066331b3b))
+* **backend:** registry of sources and tools backed by PostgreSQL ([b045027](https://github.com/IA-Generative/toolmesh/commit/b04502741efbe934d97e3d73d9560f26888cd4f2))
+* **chart:** add a CloudNativePG PostgreSQL cluster for the registry ([b9a12dd](https://github.com/IA-Generative/toolmesh/commit/b9a12ddbb49119b857831f8544cdf5249a991664))
+* **front:** create sources through the API with a tools step ([26e90ae](https://github.com/IA-Generative/toolmesh/commit/26e90ae132a156af242c1b103604b1d69dd2a751))
+* **front:** discover tools in the add-tool wizard ([9c5527a](https://github.com/IA-Generative/toolmesh/commit/9c5527ac94a7eaa44a069e12467a86e3e6a91a41))
+
 ## [0.8.0](https://github.com/IA-Generative/toolmesh/compare/v0.7.0...v0.8.0) (2026-10-26)
 
 
