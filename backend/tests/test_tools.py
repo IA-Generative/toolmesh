@@ -1,16 +1,14 @@
 import time
-from collections.abc import AsyncIterator
 from typing import Any
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
-from app.auth.dependencies import decode_token, get_jwks_client
-from app.config import Settings, get_settings
-from app.main import app
+from app.auth.dependencies import decode_token
+from app.config import Settings
 
 ISSUER = "http://kc.test/realms/toolmesh"
 AUDIENCE = "toolmesh"
@@ -38,15 +36,6 @@ def make_token(roles: list[str], *, key: Any = _key, **overrides: Any) -> str:
         "realm_access": {"roles": roles},
     } | overrides
     return jwt.encode(claims, key, algorithm="RS256")
-
-
-@pytest.fixture
-async def client() -> AsyncIterator[AsyncClient]:
-    app.dependency_overrides[get_settings] = lambda: Settings(keycloak_url="http://kc.test")
-    app.dependency_overrides[get_jwks_client] = lambda: _FakeJwks()
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
-        yield c
-    app.dependency_overrides.clear()
 
 
 def auth(token: str) -> dict[str, str]:
