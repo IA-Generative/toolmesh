@@ -63,6 +63,8 @@ async def test_create_api_source_exposes_its_tools(client: AsyncClient) -> None:
         "method": "GET",
         "path": "/orders",
         "input_schema": None,
+        "auth_mode": "token_exchange",
+        "audience": "orders",
         "required_role": None,
     }
 

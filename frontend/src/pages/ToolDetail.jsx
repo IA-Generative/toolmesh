@@ -61,6 +61,14 @@ export default function ToolDetail() {
   const facts = [
     ["Catégorie", TYPE_LABELS[tool.type] ?? tool.type],
     ["Source", tool.source],
+    ...(tool.type === "skill"
+      ? []
+      : [[
+          "Authentification",
+          tool.auth_mode === "token_exchange"
+            ? `Token exchange (audience ${tool.audience})`
+            : "Public (sans identifiants)",
+        ]]),
     ["Accès", tool.required_role ? `Rôle requis : ${tool.required_role}` : "Accessible à tous"],
   ];
 

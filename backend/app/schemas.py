@@ -72,6 +72,9 @@ class ToolOut(BaseModel):
     method: str | None = None
     path: str | None = None
     input_schema: dict[str, Any] | None = None
+    # How the source is called: `token_exchange` (with its `audience`) or `none` (public).
+    auth_mode: AuthMode = "none"
+    audience: str | None = None
     # Role required to see the tool; None means any authenticated caller.
     required_role: str | None = None
 
