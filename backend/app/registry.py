@@ -53,3 +53,27 @@ def build_source(payload: SourceIn, created_by: str) -> Source:
         tools = [ToolIn(name=payload.name, description=payload.description or "", tags=payload.tags)]
     source.tools = [Tool(**t.model_dump()) for t in tools]
     return source
+
+
+async def dedupe_tool_names(
+    db: AsyncSession, tools: list[ToolIn], source_name: str, exclude_source_id: str | None = None
+) -> list[ToolIn]:
+    """Discovered tool names must be unique across sources: a clash is renamed `<source>.<tool>`."""
+    query = select(Tool.name).where(Tool.name.in_([t.name for t in tools]))
+    if exclude_source_id:
+        query = query.where(Tool.source_id != exclude_source_id)
+    taken = set((await db.scalars(query)).all())
+    return [t.model_copy(update={"name": f"{source_name}.{t.name}"[:100]}) if t.name in taken else t for t in tools]
+
+
+def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
+    """Make the source's tools match `discovered` by name, keeping the `enabled` flag of those that stay."""
+    wanted = {t.name: t for t in discovered}
+    for tool in list(source.tools):
+        if tool.name not in wanted:
+            source.tools.remove(tool)
+            continue
+        incoming = wanted.pop(tool.name)
+        tool.description, tool.tags, tool.method = incoming.description, incoming.tags, incoming.method
+        tool.path, tool.input_schema = incoming.path, incoming.input_schema
+    source.tools.extend(Tool(**t.model_dump()) for t in wanted.values())
