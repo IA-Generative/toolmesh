@@ -63,7 +63,13 @@ async def test_user_sees_only_non_admin_tools(client: AsyncClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["user"] == "alice"
-    assert {t["name"] for t in body["tools"]} == {"web_search", "get_weather", "summarize"}
+    assert {t["name"] for t in body["tools"]} == {
+        "web_search",
+        "fetch_page",
+        "get_weather",
+        "get_forecast",
+        "summarize",
+    }
 
 
 async def test_admin_sees_all_tools(client: AsyncClient) -> None:
@@ -147,3 +153,25 @@ async def test_downstream_requires_auth(client: AsyncClient) -> None:
 
 async def test_mcp_datetime_requires_auth(client: AsyncClient) -> None:
     assert (await client.get("/api/mock/mcp-datetime")).status_code == 401
+
+
+async def test_tools_expose_tags(client: AsyncClient) -> None:
+    response = await client.get("/api/me/tools", headers=auth(make_token(["user"])))
+
+    tools = {t["name"]: t for t in response.json()["tools"]}
+    assert tools["web_search"]["tags"] == ["recherche", "web"]
+
+
+async def test_api_tool_exposes_its_route(client: AsyncClient) -> None:
+    response = await client.get("/api/me/tools", headers=auth(make_token(["user"])))
+
+    tools = {t["name"]: t for t in response.json()["tools"]}
+    assert (tools["get_weather"]["method"], tools["get_weather"]["path"]) == ("GET", "/weather/{city}")
+    assert tools["web_search"]["method"] is None
+
+
+async def test_tools_expose_input_schema(client: AsyncClient) -> None:
+    response = await client.get("/api/me/tools", headers=auth(make_token(["user"])))
+
+    schema = {t["name"]: t for t in response.json()["tools"]}["web_search"]["input_schema"]
+    assert schema["required"] == ["query"]
