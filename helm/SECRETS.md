@@ -18,7 +18,8 @@ Chaque composant (`backend`, `frontend`, `mcp_datetime`) charge des `Secret` dan
 
 ## Où les écrire dans Vault
 
-Deux secrets KV v2. Le premier, `keycloak`, est lu par le backend et le MCP ; le second, `redis`, par le backend.
+Quatre secrets KV v2. `keycloak` est lu par le backend et le MCP ; `redis` par le backend ; `db-superuser` et `db-appuser` par le
+cluster PostgreSQL (CloudNativePG), `db-appuser` l'étant aussi par le backend et le job de migration.
 
 ### `keycloak`
 
@@ -76,6 +77,57 @@ L'opérateur construit lui-même `TOOLMESH_REDIS_URL` (`redis://:<mot de passe>@
 vault kv put exploration/dev/toolmesh/redis REDIS_PASSWORD="$(openssl rand -base64 32)"
 ```
 
+### `db-superuser`
+
+Superuser du cluster PostgreSQL (CloudNativePG, sous-chart `cnpg`). Réservé à l'administration : l'application ne s'en sert pas.
+
+| Élément | Valeur |
+|---|---|
+| Chemin | `<global.vaultEnv>/toolmesh/db-superuser` |
+| `Secret` Kubernetes créé | `toolmesh-db-superuser` (type `kubernetes.io/basic-auth`) |
+| Lu par | le cluster PostgreSQL (`cnpg.cluster.superuserSecret`) |
+| Clés à écrire | `username` (**`postgres`**), `password` |
+
+CloudNativePG exige un secret de type `kubernetes.io/basic-auth` : le `VaultStaticSecret` le crée ainsi. Avec un `Secret`
+`Opaque`, le cluster attend indéfiniment.
+
+```bash
+vault kv put exploration/dev/toolmesh/db-superuser username="postgres" password="$(openssl rand -hex 32)"
+```
+
+### `db-appuser`
+
+Propriétaire de la base `toolmesh`, créée au premier démarrage du cluster. C'est le compte du backend et du job de migration.
+
+| Élément | Valeur |
+|---|---|
+| Chemin | `<global.vaultEnv>/toolmesh/db-appuser` |
+| `Secret` Kubernetes créés | `toolmesh-db-appuser` (type `kubernetes.io/basic-auth`, lu par le cluster : `cnpg.cluster.initdb.secret`) et `toolmesh-db-infos` |
+| Lu par | le cluster PostgreSQL ; `toolmesh-db-infos` par le `backend` et le job `migration` |
+| Clés à écrire | `username` (**`toolmesh`**, le propriétaire déclaré dans `cnpg.cluster.initdb.owner`), `password` |
+
+L'opérateur construit lui-même `TOOLMESH_DATABASE_URL`
+(`postgresql+asyncpg://<username>:<password>@toolmesh-pg-cluster-rw:5432/toolmesh`) dans le `Secret` `toolmesh-db-infos`, à partir du
+même chemin Vault : il n'y a qu'un mot de passe à écrire.
+
+```bash
+vault kv put exploration/dev/toolmesh/db-appuser username="toolmesh" password="$(openssl rand -hex 32)"
+```
+
+> Le mot de passe ne doit contenir aucun caractère réservé d'URL (`@ : / ? # %`) : les gabarits de l'opérateur ne savent pas
+> les encoder. `openssl rand -hex 32` convient.
+
+Changer `password` dans Vault ne change pas le mot de passe déjà créé dans PostgreSQL (le cluster ne lit ce secret qu'à
+l'initialisation). Pour le renouveler, modifiez-le aussi dans la base : `ALTER ROLE toolmesh PASSWORD '...'`.
+
+### Sauvegardes PostgreSQL (facultatif)
+
+Non activées : `cnpg.backups.enabled` vaut `false`. Pour les activer, ajoutez dans le fichier d'environnement le bloc
+`cnpg.backups` (méthode `barmanObjectStore`, `endpointURL`, `destinationPath`/bucket, `provider`) avec
+`secret: { create: false, name: toolmesh-db-backups }`, et déclarez un `VaultStaticSecret` `toolmesh-db-backups` (chemin
+`<global.vaultEnv>/toolmesh/db-backups`, comme `toolmesh-db-appuser` mais sans `type`). Les clés attendues sont celles du
+stockage S3 : `ACCESS_KEY_ID` et `ACCESS_SECRET_KEY`.
+
 ### Configuration
 
 Le chemin et le montage se règlent dans le fichier d'environnement (`global.vaultMount`, `global.vaultEnv`), le
@@ -83,9 +135,10 @@ Le chemin et le montage se règlent dans le fichier d'environnement (`global.vau
 
 ## Comment ça arrive dans les pods
 
-1. Les `VaultStaticSecret` `toolmesh-keycloak` et `toolmesh-redis` lisent leur chemin toutes les 60 s (`refreshAfter`).
+1. Les `VaultStaticSecret` (`toolmesh-keycloak`, `toolmesh-redis`, `toolmesh-db-superuser`, `toolmesh-db-appuser`,
+   `toolmesh-db-infos`) lisent leur chemin toutes les 60 s (`refreshAfter`).
 2. Le Vault Secrets Operator crée les `Secret` Kubernetes correspondants.
-3. Les pods les chargent via `envFrom`.
+3. Les pods les chargent via `envFrom` (le cluster PostgreSQL lit `toolmesh-db-superuser` et `toolmesh-db-appuser` directement).
 4. Si une valeur change dans Vault, les Deployments concernés sont redémarrés (`rolloutRestartTargets`).
 
 ## Renouveler le client secret

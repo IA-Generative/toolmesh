@@ -39,6 +39,9 @@ env:
     # Chart.yaml's `name:` field.
     CHARTS_DIR: ./
     CHART_NAME: helm
+    # Only the plain-HTTP dependencies need declaring; the cloudpirates charts
+    # are pulled straight from their OCI registry.
+    HELM_REPOS: cnpg=https://cloudnative-pg.github.io/charts
 
 jobs:
     expose-vars:
@@ -62,6 +65,7 @@ jobs:
             ENABLE_PRERELEASE: ${{ env.ENABLE_PRERELEASE }}
             CHARTS_DIR: ${{ env.CHARTS_DIR }}
             CHART_NAME: ${{ env.CHART_NAME }}
+            HELM_REPOS: ${{ env.HELM_REPOS }}
             IMAGE_BASE: ${{ steps.image-base.outputs.IMAGE_BASE }}
         steps:
             - name: Exposing env vars
@@ -173,6 +177,7 @@ jobs:
             CHARTS_DIR: ${{ needs.expose-vars.outputs.CHARTS_DIR }}
             CHART_NAME: ${{ needs.expose-vars.outputs.CHART_NAME }}
             CHECKOUT_REF: ${{ needs.bump-chart.outputs.commit-sha }}
+            HELM_REPOS: ${{ needs.expose-vars.outputs.HELM_REPOS }}
 
     # Last on purpose: a release lands commits on main (release-please's release
     # commit, and bump-chart's chart bump) that dev does not have yet, and dev

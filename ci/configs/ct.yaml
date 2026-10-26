@@ -5,7 +5,8 @@ target-branch: main
 # as a chart and ignores the rest.
 chart-dirs:
 - .
-chart-repos: []
+chart-repos:
+- cnpg=https://cloudnative-pg.github.io/charts
 helm-extra-args: ''
 validate-chart-schema: true
 validate-chart-values: true
