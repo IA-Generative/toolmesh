@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/IA-Generative/toolmesh/compare/v0.7.0...v0.8.0) (2026-10-26)
+
+
+### Features
+
+* **backend:** expose tags, origin and input schema on tools ([0fd0015](https://github.com/IA-Generative/toolmesh/commit/0fd0015df089a9b448de851e0b93a8774ae8b690))
+* **compose:** add frontend dev service with hot reload ([03c6be7](https://github.com/IA-Generative/toolmesh/commit/03c6be7fc092b85313cfd2cca0769b0aaf0d0681))
+* **front:** tool catalog with filters, detail page, add wizard, test modal and history ([944b4d1](https://github.com/IA-Generative/toolmesh/commit/944b4d117401898acd3f17008d94053c594d84fc))
+
 ## [0.7.0](https://github.com/IA-Generative/toolmesh/compare/v0.6.2...v0.7.0) (2026-10-22)
 
 
