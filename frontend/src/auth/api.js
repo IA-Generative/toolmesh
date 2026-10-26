@@ -90,5 +90,35 @@ export async function searchTools({ q = "", type = null, tags = [], source = nul
   params.set("limit", String(limit));
   const res = await fetch(`${API_URL}/api/me/tools/search?${params}`, { credentials: "include" });
   if (!res.ok) throw new Error(await errorMessage(res));
-  return res.json(); // { tools, mode: "hybrid" | "keyword" | "basic" | "filter" }
+  return res.json(); // { tools, mode: "hybrid" | "keyword" | "basic" | "filter", search_id }
 }
+
+// --- Qualité de la recherche ---------------------------------------------------------------------------------------
+
+const json = (method, body) => ({
+  method,
+  credentials: "include",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+async function request(path, init = { credentials: "include" }) {
+  const res = await fetch(`${API_URL}${path}`, init);
+  if (!res.ok) throw new Error(await errorMessage(res));
+  return res.status === 204 ? null : res.json();
+}
+
+// Un résultat de la recherche a été ouvert : signal implicite que c'était le bon (sans bloquer la navigation).
+export function sendClick(searchId, tool, rank) {
+  fetch(`${API_URL}/api/search/${searchId}/click`, { ...json("POST", { tool, rank }), keepalive: true }).catch(() => {});
+}
+
+// verdict : "found" (expected = les outils qui convenaient) ou "not_found" (expected peut être vide).
+export const sendFeedback = (searchId, { verdict, expected = [], comment = "" }) =>
+  request(`/api/search/${searchId}/feedback`, json("POST", { verdict, expected, comment: comment || null }));
+
+export const fetchSearchStats = (days) => request(`/api/admin/search/stats?days=${days}`);
+export const fetchFeedback = (status) => request(`/api/admin/search/feedback?status=${status}`);
+export const reviewFeedback = (id, body) => request(`/api/admin/search/feedback/${id}`, json("PATCH", body));
+export const fetchDataset = () => request("/api/admin/search/dataset");
+export const evaluateSearch = () => request("/api/admin/search/evaluate", json("POST", {}));

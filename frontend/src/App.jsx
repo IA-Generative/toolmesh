@@ -4,6 +4,7 @@ import MentionsLegales from "./pages/MentionsLegales";
 import RequireAuth from "./auth/RequireAuth";
 import Home from "./pages/Home";
 import AddTool from "./pages/AddTool";
+import SearchQuality from "./pages/SearchQuality";
 import ToolDetail from "./pages/ToolDetail";
 import NotFound from "./pages/NotFound";
 import PublicLayout from "./layouts/PublicLayout";
@@ -21,6 +22,7 @@ export default function App() {
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/accueil" element={<Home />}/>
+          <Route path="/recherche/qualite" element={<SearchQuality />}/>
           <Route path="/outils/nouveau" element={<AddTool />}/>
           <Route path="/outils/:name" element={<ToolDetail />}/>
         </Route>
