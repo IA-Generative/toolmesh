@@ -52,10 +52,15 @@ backend:
     # Listed last: its computed TOOLMESH_DATABASE_URL wins over any same-named key of the secrets above.
     - secretRef:
         name: "toolmesh-db-infos"
+    # QDRANT_API_KEY (the index) and the optional embeddings API (url, key, model).
+    - secretRef:
+        name: "toolmesh-search"
   # Plain (non-secret) app config - see the backend settings for the full contract.
   env:
     # The schema is migrated by the `migration` job below, not by every replica at startup.
     TOOLMESH_AUTO_MIGRATE: "false"
+    # Cluster-internal address of the bundled Qdrant (Service `toolmesh-qdrant`, see `qdrant` below).
+    TOOLMESH_QDRANT_URL: "http://toolmesh-qdrant:6333"
     TOOLMESH_KEYCLOAK_REALM: "toolmesh"
     TOOLMESH_KEYCLOAK_CLIENT_ID: "toolmesh"
     # Uncomment when the browser reaches Keycloak through another address than TOOLMESH_KEYCLOAK_URL (in Vault).
@@ -362,6 +367,32 @@ extraObjects:
         name: toolmesh-searxng
         create: true
 
+  # Vault keys: QDRANT_API_KEY, and optionally TOOLMESH_EMBEDDINGS_URL, TOOLMESH_EMBEDDINGS_API_KEY and
+  # TOOLMESH_EMBEDDINGS_MODEL (an OpenAI-compatible embeddings API: without it only the keywords are indexed). The
+  # backend reads QDRANT_API_KEY as TOOLMESH_QDRANT_API_KEY, which the operator builds from it; Qdrant itself reads
+  # the key through its env var below.
+  toolmesh-search:
+    apiVersion: secrets.hashicorp.com/v1beta1
+    kind: VaultStaticSecret
+    metadata:
+      name: toolmesh-search
+    spec:
+      vaultAuthRef: vault-auth
+      mount: '{{ required "global.vaultMount is required (exploration...)" .Values.global.vaultMount }}'
+      type: kv-v2
+      path: '{{ required "global.vaultEnv is required (dev, staging, prod...)" .Values.global.vaultEnv }}/toolmesh/search'
+      refreshAfter: 60s
+      rolloutRestartTargets:
+        - kind: Deployment
+          name: '{{ include "helper.componentFullname" (dict "root" . "componentName" "backend") }}'
+      destination:
+        name: toolmesh-search
+        create: true
+        transformation:
+          templates:
+            TOOLMESH_QDRANT_API_KEY:
+              text: '{{ "{{" }} get .Secrets "QDRANT_API_KEY" {{ "}}" }}'
+
 # Redis (sessions of the backend) is the bundled chart, like Muffin; its Service is `<fullnameOverride>`
 # (host of TOOLMESH_REDIS_URL, see `toolmesh-redis`).
 redis:
@@ -453,3 +484,30 @@ searxng:
       formats:
         - html
         - json
+
+# Search index of the tools. The API key is Vault-backed (`toolmesh-search`): the backend reads it through envFrom and
+# the server through the env var below. Not the chart's `apiKey`, which reads the secret when the chart is rendered
+# (before it exists on a first install: the server would start with no key at all); an env var is resolved when the
+# pod starts, and the pod does not start without the secret. Service `<fullnameOverride>` on port 6333.
+qdrant:
+  enabled: true
+  fullnameOverride: "toolmesh-qdrant"
+  replicaCount: 1
+  env:
+    - name: QDRANT__SERVICE__API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: toolmesh-search
+          key: QDRANT_API_KEY
+  # The chart's `ensure-dir-ownership` init container takes no resources, which a namespace quota refuses; the pod's
+  # fsGroup already gives the volume to the container's group.
+  updateVolumeFsOwnership: false
+  persistence:
+    size: "2Gi"
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"

@@ -12,7 +12,7 @@ sources:
   - https://github.com/IA-Generative/toolmesh
   - https://github.com/this-is-tobi/helm-charts
 maintainers: []
-# Optional (see the `redis`, `cnpg` and `searxng` keys of values.yaml). The packaged archive is committed in `charts/`:
+# Optional (see the `redis`, `cnpg`, `searxng` and `qdrant` keys of values.yaml). The packaged archive is committed in `charts/`:
 # `helm dependency update` refreshes it when the version below changes.
 dependencies:
   - name: redis
@@ -31,3 +31,8 @@ dependencies:
     version: 0.1.11
     repository: https://unknowniq.github.io/helm-charts
     condition: searxng.enabled
+  # Search index of the tools (keywords and embeddings).
+  - name: qdrant
+    version: 1.20.0
+    repository: https://qdrant.github.io/qdrant-helm
+    condition: qdrant.enabled

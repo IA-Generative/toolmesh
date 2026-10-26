@@ -111,6 +111,24 @@ the app, add a source of type MCP with the URL `http://mcp-search:8000/mcp`, aut
 audience `mcp-search`, then "Découvrir maintenant" (the demo data already declares it as `search-mcp`).
 Tests: `cd mcp-search && uv run pytest`. After changing the realm, recreate Keycloak (see above).
 
+## Searching the tools
+
+`GET /api/me/tools/search?q=…&type=…&tag=…&source=…&version=…` searches the tools visible to the caller and/or filters
+them; the app's search modal and "Mes outils" page use it. Tools are indexed in Qdrant (started by the compose stack, on
+:6333) when a source is added, refreshed or deleted:
+
+- keywords: a BM25-like sparse vector computed by the backend (accents and stop words folded);
+- meaning: a dense vector from an OpenAI-compatible embeddings API, **optional** (`TOOLMESH_EMBEDDINGS_URL`,
+  `TOOLMESH_EMBEDDINGS_API_KEY`, `TOOLMESH_EMBEDDINGS_MODEL`, e.g. in your shell before `docker compose up`).
+
+Qdrant fuses both rankings (reciprocal rank fusion) and applies the filters and the role of the caller. The response's `mode`
+says what happened: `hybrid`, `keyword` (no embeddings API), `basic` (no Qdrant, or it failed: plain keyword match on the
+registry) or `filter` (no query). `POST /api/admin/reindex` (role `admin`) rebuilds the index, e.g. after changing the
+embedding model.
+
+Each source has a `version`: the `info.version` of its OpenAPI document or the version announced by the MCP server, read when
+its tools are discovered (and again on refresh), unless you set one by hand. It is shown on the tool and can be filtered on.
+
 ## Kubernetes
 
 The chart (`helm/`) deploys the backend and `mcp-datetime`. Set `oidc.issuer` and either

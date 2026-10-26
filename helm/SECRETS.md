@@ -18,7 +18,8 @@ Chaque composant (`backend`, `frontend`, `mcp_datetime`) charge des `Secret` dan
 
 ## Où les écrire dans Vault
 
-Cinq secrets KV v2. `keycloak` est lu par le backend et les serveurs MCP ; `searxng` par le moteur de recherche ; `redis` par le backend ; `db-superuser` et `db-appuser` par le
+Six secrets KV v2. `keycloak` est lu par le backend et les serveurs MCP ; `searxng` par le moteur de recherche web ; `search` par le
+backend et par Qdrant (index de recherche des outils) ; `redis` par le backend ; `db-superuser` et `db-appuser` par le
 cluster PostgreSQL (CloudNativePG), `db-appuser` l'étant aussi par le backend et le job de migration.
 
 ### `keycloak`
@@ -100,6 +101,35 @@ Clé secrète de SearXNG (moteur de recherche du serveur MCP `mcp_search`), qui 
 vault kv put exploration/dev/toolmesh/searxng SEARXNG_SECRET="$(openssl rand -hex 32)"
 ```
 
+### `search`
+
+Index de recherche des outils (Qdrant, sous-chart `qdrant`) et, facultativement, l'API d'embeddings qui permet la recherche par le sens.
+
+| Élément | Valeur |
+|---|---|
+| Chemin | `<global.vaultEnv>/toolmesh/search` |
+| `Secret` Kubernetes créé | `toolmesh-search` |
+| Lu par | le `backend` (`envFrom`) et Qdrant (variable `QDRANT__SERVICE__API_KEY`) |
+
+| Clé | Rôle | Obligatoire |
+|---|---|:-:|
+| `QDRANT_API_KEY` | Clé d'API de Qdrant. L'opérateur en tire `TOOLMESH_QDRANT_API_KEY` pour le backend | ✔ |
+| `TOOLMESH_EMBEDDINGS_URL` | URL de base d'une API d'embeddings compatible OpenAI (`POST <url>/embeddings`), p. ex. le hub LLM | |
+| `TOOLMESH_EMBEDDINGS_API_KEY` | Clé de cette API | |
+| `TOOLMESH_EMBEDDINGS_MODEL` | Modèle d'embeddings à utiliser | |
+
+Sans les trois clés `TOOLMESH_EMBEDDINGS_*`, seuls les mots-clés sont indexés (recherche `keyword`) ; avec elles, la recherche
+est hybride (mots-clés et sens). Changer de modèle d'embeddings change la taille des vecteurs : relancez ensuite
+`POST /api/admin/reindex` (rôle `admin`) pour reconstruire l'index.
+
+```bash
+vault kv put exploration/dev/toolmesh/search \
+  QDRANT_API_KEY="$(openssl rand -hex 32)" \
+  TOOLMESH_EMBEDDINGS_URL="https://llm.example.org/v1" \
+  TOOLMESH_EMBEDDINGS_API_KEY="<clé de l'API d'embeddings>" \
+  TOOLMESH_EMBEDDINGS_MODEL="<modèle d'embeddings>"
+```
+
 ### `db-superuser`
 
 Superuser du cluster PostgreSQL (CloudNativePG, sous-chart `cnpg`). Réservé à l'administration : l'application ne s'en sert pas.
@@ -158,7 +188,7 @@ Le chemin et le montage se règlent dans le fichier d'environnement (`global.vau
 
 ## Comment ça arrive dans les pods
 
-1. Les `VaultStaticSecret` (`toolmesh-keycloak`, `toolmesh-redis`, `toolmesh-searxng`, `toolmesh-db-superuser`, `toolmesh-db-appuser`,
+1. Les `VaultStaticSecret` (`toolmesh-keycloak`, `toolmesh-redis`, `toolmesh-searxng`, `toolmesh-search`, `toolmesh-db-superuser`, `toolmesh-db-appuser`,
    `toolmesh-db-infos`) lisent leur chemin toutes les 60 s (`refreshAfter`).
 2. Le Vault Secrets Operator crée les `Secret` Kubernetes correspondants.
 3. Les pods les chargent via `envFrom` (le cluster PostgreSQL lit `toolmesh-db-superuser` et `toolmesh-db-appuser` directement).

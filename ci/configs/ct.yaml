@@ -8,6 +8,7 @@ chart-dirs:
 chart-repos:
 - cnpg=https://cloudnative-pg.github.io/charts
 - searxng=https://unknowniq.github.io/helm-charts
+- qdrant=https://qdrant.github.io/qdrant-helm
 helm-extra-args: ''
 validate-chart-schema: true
 validate-chart-values: true
