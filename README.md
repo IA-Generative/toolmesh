@@ -126,6 +126,9 @@ says what happened: `hybrid`, `keyword` (no embeddings API), `basic` (no Qdrant,
 registry) or `filter` (no query). `POST /api/admin/reindex` (role `admin`) rebuilds the index, e.g. after changing the
 embedding model.
 
+How tools are indexed, the settings, the choice of the model and how to measure the quality of the search with your own
+model (`backend/eval`): see [docs/search.md](docs/search.md).
+
 Each source has a `version`: the `info.version` of its OpenAPI document or the version announced by the MCP server, read when
 its tools are discovered (and again on refresh), unless you set one by hand. It is shown on the tool and can be filtered on.
 
