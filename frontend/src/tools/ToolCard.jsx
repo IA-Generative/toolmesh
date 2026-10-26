@@ -11,7 +11,7 @@ export function FilterTag({ label, pressed, onClick }) {
 }
 
 // Carte d'un outil. Avec `to`, toute la carte est un lien ; avec `onTag`, les tags sont des boutons de filtre.
-export default function ToolCard({ tool, to, activeTags = [], onTag, titleAs: Title = "h2" }) {
+export default function ToolCard({ tool, to, activeTags = [], onTag, onOpen, titleAs: Title = "h2" }) {
   const tags = tool.tags ?? [];
   const label = (
     <>
@@ -24,7 +24,7 @@ export default function ToolCard({ tool, to, activeTags = [], onTag, titleAs: Ti
       <div className="fr-card__body">
         <div className="fr-card__content">
           <Title className="fr-card__title">
-            {to ? <Link to={to} className="fr-card__link">{label}</Link> : label}
+            {to ? <Link to={to} className="fr-card__link" onClick={onOpen}>{label}</Link> : label}
           </Title>
           <p className="fr-card__desc">{tool.description}</p>
           <div className="fr-card__start">
