@@ -1,0 +1,52 @@
+{{- if .Values.enabled }}
+{{- if and .Values.mcp_search.metrics.enabled .Values.mcp_search.metrics.serviceMonitor.enabled }}
+{{- $metricSvcPort := .Values.mcp_search.metrics.service.portName | default .Values.mcp_search.metrics.service.port -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search-metrics") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+  {{- if .Values.mcp_search.metrics.serviceMonitor.labels }}
+    {{- toYaml .Values.mcp_search.metrics.serviceMonitor.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.mcp_search.metrics.serviceMonitor.annotations }}
+  annotations: {{- toYaml .Values.mcp_search.metrics.serviceMonitor.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  endpoints:
+  {{- range .Values.mcp_search.metrics.serviceMonitor.endpoints }}
+  - port: {{ $metricSvcPort }}
+    path: {{ .path }}
+    honorLabels: {{ .honorLabels }}
+    {{- if and .basicAuth .basicAuth.username .basicAuth.password }}
+    basicAuth: {{- toYaml .basicAuth | nindent 6 }}
+    {{- end }}
+    {{- if and .bearerTokenSecret .bearerTokenSecret.name .bearerTokenSecret.key }}
+    bearerTokenSecret: {{- toYaml .bearerTokenSecret | nindent 6 }}
+    {{- end }}
+    {{- if .interval }}
+    interval: {{ .interval }}
+    {{- end }}
+    {{- if .scrapeTimeout }}
+    scrapeTimeout: {{ .scrapeTimeout }}
+    {{- end }}
+    {{- if .relabelings }}
+    relabelings: {{- toYaml .relabelings | nindent 6 }}
+    {{- end }}
+    {{- if .metricRelabelings }}
+    metricRelabelings: {{- toYaml .metricRelabelings | nindent 6 }}
+    {{- end }}
+    {{- if .scheme }}
+    scheme: {{ .scheme }}
+    {{- end }}
+    {{- if .tlsConfig }}
+    tlsConfig: {{- toYaml .tlsConfig | nindent 6 }}
+    {{- end }}
+  {{- end }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace | quote }}
+  selector:
+    matchLabels: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_search-metrics") | nindent 6 }}
+{{- end }}
+{{- end }}

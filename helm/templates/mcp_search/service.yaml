@@ -1,0 +1,26 @@
+{{- if .Values.enabled }}
+{{- /* Not gated on `deploymentType`: every supported kind (Deployment/StatefulSet/DaemonSet) can
+sit behind a Service, and `service.enabled` is the switch for components that take no traffic.
+This matches metrics.yaml, which is gated the same way. */ -}}
+{{- if .Values.mcp_search.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+spec:
+  type: {{ .Values.mcp_search.service.type | default "ClusterIP" }}
+  ports:
+  - port: {{ .Values.mcp_search.service.port | default 80 }}
+    targetPort: {{ .Values.mcp_search.containerPortName | default .Values.mcp_search.containerPort | default 8080 }}
+    protocol: {{ .Values.mcp_search.service.protocol | default "TCP" }}
+    {{- if and (eq .Values.mcp_search.service.type "NodePort") .Values.mcp_search.service.nodePort }}
+    nodePort: {{ .Values.mcp_search.service.nodePort }}
+    {{- end }}
+    name: {{ .Values.mcp_search.service.portName | default "http" }}
+  {{- if .Values.mcp_search.service.extraPorts -}}
+  {{- toYaml .Values.mcp_search.service.extraPorts | nindent 2 -}}
+  {{- end }}
+  selector: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_search") | nindent 4 }}
+{{- end }}
+{{- end }}

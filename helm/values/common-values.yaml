@@ -121,6 +121,30 @@ mcp_datetime:
       cpu: "250m"
       memory: "256Mi"
 
+# Standalone MCP server for web search (SearXNG) and page reading, protected by a Keycloak token (audience `mcp-search`).
+mcp_search:
+  envFrom:
+    - secretRef:
+        name: "toolmesh-keycloak"
+  env:
+    # Cluster-internal address of the bundled SearXNG (Service `toolmesh-searxng`, see `searxng` below).
+    MCP_SEARCH_SEARXNG_URL: "http://toolmesh-searxng:8080"
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: "RuntimeDefault"
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+    limits:
+      cpu: "250m"
+      memory: "256Mi"
+
 # Applies the Alembic migrations of the registry. It is a `post-*` hook: on a fresh install, and on the first upgrade
 # that introduces the database, the CNPG cluster and the `toolmesh-db-infos` Secret do not exist before the release
 # is applied, so a `pre-*` hook would wait for them until the Helm timeout. The cost: on later upgrades the new
@@ -324,6 +348,22 @@ extraObjects:
             TOOLMESH_DATABASE_URL:
               text: 'postgresql+asyncpg://{{ "{{" }} get .Secrets "username" {{ "}}" }}:{{ "{{" }} get .Secrets "password" {{ "}}" }}@toolmesh-pg-cluster-rw:5432/toolmesh'
 
+  # Vault key: SEARXNG_SECRET (SearXNG's `secret_key`: any long random value, `openssl rand -hex 32`).
+  toolmesh-searxng:
+    apiVersion: secrets.hashicorp.com/v1beta1
+    kind: VaultStaticSecret
+    metadata:
+      name: toolmesh-searxng
+    spec:
+      vaultAuthRef: vault-auth
+      mount: '{{ required "global.vaultMount is required (exploration...)" .Values.global.vaultMount }}'
+      type: kv-v2
+      path: '{{ required "global.vaultEnv is required (dev, staging, prod...)" .Values.global.vaultEnv }}/toolmesh/searxng'
+      refreshAfter: 60s
+      destination:
+        name: toolmesh-searxng
+        create: true
+
 # Redis (sessions of the backend) is the bundled chart, like Muffin; its Service is `<fullnameOverride>`
 # (host of TOOLMESH_REDIS_URL, see `toolmesh-redis`).
 redis:
@@ -373,3 +413,41 @@ cnpg:
       owner: "toolmesh"
       secret:
         name: "toolmesh-db-appuser"
+
+# Web search engine behind `mcp_search`, reached at its Service `<fullnameOverride>` on port 8080 only from inside the
+# cluster (no Ingress). `search.formats` must list `json`: it is what `mcp_search` reads.
+searxng:
+  enabled: true
+  fullnameOverride: "toolmesh-searxng"
+  serviceAccount:
+    create: false
+    automount: false
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 977
+    runAsGroup: 977
+    fsGroup: 977
+    # The init container copies settings.yml from a root-owned ConfigMap into an emptyDir: without `Always`, the
+    # files stay root-owned and SearXNG cannot write to them.
+    fsGroupChangePolicy: Always
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+  secret:
+    create: false
+    existingSecret: "toolmesh-searxng"
+    secretKey: "SEARXNG_SECRET"
+  extraConfig:
+    ui:
+      default_locale: fr
+    outgoing:
+      request_timeout: 10
+    search:
+      safe_search: 1
+      formats:
+        - html
+        - json

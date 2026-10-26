@@ -5,5 +5,8 @@ dependencies:
 - name: cluster
   repository: https://cloudnative-pg.github.io/charts
   version: 0.8.1
-digest: sha256:fa890ff2d403605340221e97974fb4aef2988aef400231d69bc8298e35174646
-generated: "2026-10-26T13:40:29.581029386+01:00"
+- name: searxng
+  repository: https://unknowniq.github.io/helm-charts
+  version: 0.1.11
+digest: sha256:244240342a0e805b86a25509c46ffa46220d2e537f68e65d8011f4d99a3cd462
+generated: "2026-10-26T15:02:17.446485984+01:00"

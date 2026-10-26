@@ -35,6 +35,7 @@ jobs:
         outputs:
             backend: ${{ steps.filter.outputs.backend }}
             mcp-datetime: ${{ steps.filter.outputs.mcp-datetime }}
+            mcp-search: ${{ steps.filter.outputs.mcp-search }}
             frontend: ${{ steps.filter.outputs.frontend }}
             helm: ${{ steps.filter.outputs.helm }}
             ci: ${{ steps.filter.outputs.ci }}
@@ -52,6 +53,8 @@ jobs:
                         - 'backend/**'
                       mcp-datetime:
                         - 'mcp-datetime/**'
+                      mcp-search:
+                        - 'mcp-search/**'
                       frontend:
                         - 'frontend/**'
                       helm:
@@ -65,6 +68,7 @@ jobs:
               env:
                   BACKEND: ${{ steps.filter.outputs.backend }}
                   MCP_DATETIME: ${{ steps.filter.outputs.mcp-datetime }}
+                  MCP_SEARCH: ${{ steps.filter.outputs.mcp-search }}
                   FRONTEND: ${{ steps.filter.outputs.frontend }}
                   CI: ${{ steps.filter.outputs.ci }}
               run: |
@@ -79,6 +83,10 @@ jobs:
 
                   if [ "$MCP_DATETIME" = "true" ] || [ "$CI" = "true" ]; then
                     add '{"name":"mcp-datetime","context":"mcp-datetime","dockerfile":"mcp-datetime/Dockerfile","target":"runtime"}'
+                  fi
+
+                  if [ "$MCP_SEARCH" = "true" ] || [ "$CI" = "true" ]; then
+                    add '{"name":"mcp-search","context":"mcp-search","dockerfile":"mcp-search/Dockerfile","target":"runtime"}'
                   fi
 
                   if [ "$FRONTEND" = "true" ] || [ "$CI" = "true" ]; then
@@ -134,7 +142,7 @@ jobs:
         uses: ./.github/workflows/lint.yml
         needs:
             - path-filter
-        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.ci == 'true' }}
+        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.mcp-search == 'true' || needs.path-filter.outputs.ci == 'true' }}
         permissions:
             contents: read
 
@@ -142,7 +150,7 @@ jobs:
         uses: ./.github/workflows/unit-tests.yml
         needs:
             - path-filter
-        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.ci == 'true' }}
+        if: ${{ needs.path-filter.outputs.backend == 'true' || needs.path-filter.outputs.mcp-datetime == 'true' || needs.path-filter.outputs.mcp-search == 'true' || needs.path-filter.outputs.ci == 'true' }}
         permissions:
             contents: read
 

@@ -8,3 +8,8 @@ mcp_datetime:
   env:
     MCP_DATETIME_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
     MCP_DATETIME_OIDC_AUDIENCE: "mcp-datetime"
+mcp_search:
+  env:
+    MCP_SEARCH_OIDC_ISSUER: "https://keycloak.example.com/realms/toolmesh"
+    MCP_SEARCH_OIDC_AUDIENCE: "mcp-search"
+    MCP_SEARCH_SEARXNG_URL: "http://toolmesh-searxng:8080"

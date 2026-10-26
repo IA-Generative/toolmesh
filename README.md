@@ -114,3 +114,6 @@ The chart (`helm/`) deploys the backend and `mcp-datetime`. Set `oidc.issuer` an
 `oidc.clientSecret.existingSecret` or `oidc.clientSecret.value` (secret of the `toolmesh` Keycloak client,
 required). `TOOLMESH_MCP_DATETIME_URL` is derived from the release automatically; expose the MCP outside the
 cluster with `mcpDatetime.ingress.enabled=true`.
+
+It also deploys `mcp-search` (`mcp_search`) and the SearXNG it reads (`searxng` dependency, `searxng.enabled`), reachable
+only from inside the cluster; the secrets they need are listed in `helm/SECRETS.md`.

@@ -1,0 +1,25 @@
+{{- if .Values.enabled }}
+{{- if eq .Values.mcp_search.deploymentType "StatefulSet" }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- include "helper.labels" (dict "root" . "componentName" "mcp_search") | nindent 4 }}
+spec:
+  {{- if not .Values.mcp_search.autoscaling.enabled }}
+  replicas: {{ .Values.mcp_search.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.mcp_search.revisionHistoryLimit | default 10 }}
+  selector:
+    matchLabels: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_search") | nindent 6 }}
+  serviceName: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  {{- with .Values.mcp_search.updateStrategy }}
+  updateStrategy: {{- toYaml . | nindent 4 }}
+  {{- end }}
+  template:
+    {{- include "helper.component.podTemplate" (dict "root" . "name" "mcp_search" "component" .Values.mcp_search) | nindent 4 }}
+  {{- if or .Values.mcp_search.volumeClaims .Values.mcp_search.extraVolumeClaims }}
+  volumeClaimTemplates: {{- toYaml (concat (default (list) .Values.mcp_search.volumeClaims) (default (list) .Values.mcp_search.extraVolumeClaims)) | nindent 2 }}
+  {{- end }}
+{{- end }}
+{{- end }}

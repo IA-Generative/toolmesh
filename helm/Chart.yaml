@@ -3,7 +3,7 @@ name: helm
 type: application
 version: 0.9.0
 appVersion: "0.9.0"
-description: A Helm chart to deploy toolmesh (backend, datetime MCP server).
+description: A Helm chart to deploy toolmesh (backend, frontend, datetime and search MCP servers).
 kubeVersion: ">=1.25.0-0"
 deprecated: false
 annotations: {}
@@ -12,7 +12,7 @@ sources:
   - https://github.com/IA-Generative/toolmesh
   - https://github.com/this-is-tobi/helm-charts
 maintainers: []
-# Optional (see the `redis` and `cnpg` keys of values.yaml). The packaged archive is committed in `charts/`:
+# Optional (see the `redis`, `cnpg` and `searxng` keys of values.yaml). The packaged archive is committed in `charts/`:
 # `helm dependency update` refreshes it when the version below changes.
 dependencies:
   - name: redis
@@ -26,3 +26,8 @@ dependencies:
     version: 0.8.1
     repository: https://cloudnative-pg.github.io/charts
     condition: cnpg.enabled
+  # Meta-search engine behind the search MCP server (`mcp_search`).
+  - name: searxng
+    version: 0.1.11
+    repository: https://unknowniq.github.io/helm-charts
+    condition: searxng.enabled
