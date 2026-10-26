@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/IA-Generative/toolmesh/compare/v0.10.0...v0.11.0) (2026-10-26)
+
+
+### Features
+
+* remove the mocks and run tools for real ([270b987](https://github.com/IA-Generative/toolmesh/commit/270b987118d8de56686ef62709bd0cac9e599980))
+
 ## [0.10.0](https://github.com/IA-Generative/toolmesh/compare/v0.9.0...v0.10.0) (2026-10-26)
 
 
