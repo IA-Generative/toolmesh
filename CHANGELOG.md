@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.12.0](https://github.com/IA-Generative/toolmesh/compare/v0.11.0...v0.12.0) (2026-10-26)
+
+
+### Features
+
+* show how a source is called on the tool page ([58ba8ac](https://github.com/IA-Generative/toolmesh/commit/58ba8acc954c2c5b80ce73313ac59c6fcd77d4ed))
+
+
+### Bug Fixes
+
+* **chart:** disable Valkey in SearXNG with a boolean ([4dd5670](https://github.com/IA-Generative/toolmesh/commit/4dd5670246255657c410f7da40d2248c1c3b2f85))
+
 ## [0.11.0](https://github.com/IA-Generative/toolmesh/compare/v0.10.0...v0.11.0) (2026-10-26)
 
 
