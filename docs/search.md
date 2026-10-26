@@ -49,6 +49,36 @@ answers by plain keyword match (`mode: basic`).
   refilled from the registry. Changing the **model** with the same vector size is not detected: call
   `POST /api/admin/reindex`.
 
+## Learning from the users
+
+The search is only as good as the queries it was tested on, so real ones are collected, reviewed and fed back.
+
+1. **Every search with a query is logged** (`search_events`: who, what, filters, how it was ranked, which tools came back,
+   how long it took) and answered with a `search_id`. Searches older than `TOOLMESH_SEARCH_LOG_RETENTION_DAYS` (90) are
+   deleted at startup, except those with an approved verdict; `TOOLMESH_SEARCH_LOG_ENABLED=false` logs nothing. A user
+   only sees their own searches' ids, and queries are free text: treat the log as personal data.
+2. **The user evaluates the search** in the app: "Cette recherche a-t-elle trouvé ce que vous cherchiez ?" → yes (and which
+   tool) or no (and which tool it should have been, or none, i.e. the catalogue has nothing for this question), with an
+   optional comment (`POST /api/search/{search_id}/feedback`). Opening a result is recorded as a click
+   (`POST /api/search/{search_id}/click`, rank included).
+3. **An admin reviews each verdict** (dashboard, "Retours à examiner"): approve it (possibly correcting the expected
+   tool) or reject it. Nothing a user says is used before that, so a mistake or an attempt to push a tool is not learned.
+4. **An approved verdict does two things**:
+   - it joins the **dataset** (`GET /api/admin/search/dataset`, same format as `backend/eval/queries.json`: replay it
+     with `eval.run`, or keep it as the test set for the next model);
+   - the query becomes an **alias of the expected tool** (at most 10 per tool, the newest): it is added to the text of
+     the tool, in the keyword vector (weight 2) and in the dense text ("Also searched as: …"), and that tool alone is
+     re-embedded. The next person asking in the same words finds it, whatever the model thinks. Rejecting or reopening
+     the verdict removes the alias.
+5. **The dashboard** (admin, "Qualité de la recherche"): searches per day with and without result, the share followed by a
+   click and the mean reciprocal rank of the first click, the share of searches judged satisfactory, the queries with no
+   result, the queries judged unsatisfactory (with the tool that was expected), the tools users choose, latency, and the
+   verdicts waiting for review.
+6. **"Évaluer la recherche sur ce jeu"** (`POST /api/admin/search/evaluate`) measures hit@1, hit@3 and MRR on the dataset
+   with a temporary index of the registry built **without the aliases**: what the strategy achieves on real queries, not
+   what it was taught by the very same queries (which would be 100 % by construction). Compare it before and after a
+   change of model, prefix or weight; it embeds every tool, so it takes a few seconds with an embeddings API.
+
 ## Settings
 
 | Variable | Default | Role |
@@ -59,6 +89,7 @@ answers by plain keyword match (`mode: basic`).
 | `TOOLMESH_EMBEDDINGS_QUERY_PREFIX`, `_DOCUMENT_PREFIX` | empty | for models trained with instructions (e5: `query: ` / `passage: `; bge: an instruction on the query) |
 | `TOOLMESH_SEARCH_MIN_DENSE_SCORE` | unset | cosine score under which a dense match is ignored |
 | `TOOLMESH_SEARCH_DENSE_WEIGHT`, `_KEYWORD_WEIGHT`, `_RRF_K`, `_NAME_BONUS` | 1, 1, 10, 0.15 | the fusion |
+| `TOOLMESH_SEARCH_LOG_ENABLED`, `_LOG_RETENTION_DAYS` | true, 90 | the log of the searches (see below) |
 
 **Choose a multilingual model** (the tools and the questions are in French and English): e.g. `bge-m3`,
 `multilingual-e5-*`, or an equivalent of the hub. An English-only model cannot link "quel temps fait-il" to a weather tool.
