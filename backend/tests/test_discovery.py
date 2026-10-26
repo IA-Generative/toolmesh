@@ -4,7 +4,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.config import Settings
-from app.discovery import DiscoveryError, check_url, is_exposed, matches, tools_from_spec
+from app.discovery import DiscoveryError, check_url, is_exposed, matches, spec_version, tools_from_spec
 from app.schemas import SourceIn, ToolIn
 from tests.test_sources import API_SOURCE, auth, create, make_token, user
 
@@ -131,14 +131,20 @@ async def test_private_addresses_pass_when_allowed_and_bad_schemes_never() -> No
 
 
 @pytest.fixture
-def found(monkeypatch: pytest.MonkeyPatch) -> list[ToolIn]:
+def found_version() -> list[str | None]:
+    """The version the (faked) discovery reads; a one-item list so that tests can change it."""
+    return ["1.2.0"]
+
+
+@pytest.fixture
+def found(monkeypatch: pytest.MonkeyPatch, found_version: list[str | None]) -> list[ToolIn]:
     """What the (faked) discovery returns; tests mutate the list to change it."""
     tools = [ToolIn(name="list_things", description="List", method="GET", path="/things")]
 
-    async def fake(source: SourceIn, *_: Any) -> list[ToolIn]:
+    async def fake(source: SourceIn, *_: Any) -> tuple[list[ToolIn], str | None]:
         if not tools:
             raise DiscoveryError("No tool found", 422)
-        return list(tools)
+        return list(tools), found_version[0]
 
     monkeypatch.setattr("app.routers.sources.discover", fake)
     return tools
@@ -223,3 +229,44 @@ async def test_refresh_rules(client: AsyncClient, found: list[ToolIn]) -> None:
 
 async def test_discover_requires_authentication(client: AsyncClient) -> None:
     assert (await client.post("/api/sources/discover", json=declared_none())).status_code == 401
+
+
+# --- Versions ------------------------------------------------------------------------------------------------------
+
+
+def test_the_version_of_an_openapi_document_is_read() -> None:
+    assert spec_version({"info": {"version": "2.1.0"}}) == "2.1.0"
+    assert spec_version({"info": {"version": 3}}) == "3"
+    assert spec_version({"info": {}}) is None
+    assert spec_version({}) is None
+
+
+async def test_discover_previews_the_version(client: AsyncClient, found: list[ToolIn]) -> None:
+    response = await client.post("/api/sources/discover", json=declared_none(), headers=user())
+
+    assert response.json()["version"] == "1.2.0"
+
+
+async def test_the_discovered_version_is_stored_and_shown(client: AsyncClient, found: list[ToolIn]) -> None:
+    created = await create(client, declared_none())
+
+    assert created.json()["version"] == "1.2.0"
+    tool = (await client.get("/api/me/tools/list_things", headers=user())).json()
+    assert tool["source_version"] == "1.2.0"
+
+
+async def test_an_explicit_version_wins_over_the_discovered_one(client: AsyncClient, found: list[ToolIn]) -> None:
+    created = await create(client, declared_none(version="v9"))
+
+    assert created.json()["version"] == "v9"
+
+
+async def test_refresh_updates_the_version_and_keeps_it_when_none_is_found(
+    client: AsyncClient, found: list[ToolIn], found_version: list[str | None]
+) -> None:
+    source_id = (await create(client, declared_none())).json()["id"]
+    found_version[0] = "1.3.0"
+    assert (await client.post(f"/api/sources/{source_id}/refresh", headers=user())).json()["version"] == "1.3.0"
+
+    found_version[0] = None
+    assert (await client.post(f"/api/sources/{source_id}/refresh", headers=user())).json()["version"] == "1.3.0"

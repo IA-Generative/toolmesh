@@ -13,6 +13,7 @@ from app.db.session import get_db
 from app.discovery import DiscoveryError, discover
 from app.registry import build_source, dedupe_tool_names, is_visible, name_conflicts, sync_tools
 from app.schemas import SourceIn, SourceOut, ToolIn
+from app.toolsearch import forget_source, sync_source
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 
@@ -22,9 +23,10 @@ AppSettings = Annotated[Settings, Depends(get_settings)]
 
 class DiscoveredTools(BaseModel):
     tools: list[ToolIn]
+    version: str | None = None
 
 
-async def _discover(payload: SourceIn, user: CurrentUser, settings: Settings) -> list[ToolIn]:
+async def _discover(payload: SourceIn, user: CurrentUser, settings: Settings) -> tuple[list[ToolIn], str | None]:
     try:
         return await discover(payload, user.token, settings)
     except DiscoveryError as exc:
@@ -41,8 +43,8 @@ async def _get_visible(db: AsyncSession, source_id: str, user: CurrentUser) -> S
 @router.post("/discover")
 async def discover_tools(payload: SourceIn, user: CurrentUser, db: DB, settings: AppSettings) -> DiscoveredTools:
     """Preview the tools of an MCP server or API without registering anything."""
-    tools = await _discover(payload, user, settings)
-    return DiscoveredTools(tools=await dedupe_tool_names(db, tools, payload.name))
+    tools, version = await _discover(payload, user, settings)
+    return DiscoveredTools(tools=await dedupe_tool_names(db, tools, payload.name), version=version)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -51,8 +53,10 @@ async def create_source(payload: SourceIn, user: CurrentUser, db: DB, settings: 
     if taken := await name_conflicts(db, payload):
         raise HTTPException(status.HTTP_409_CONFLICT, f"Already exists: {', '.join(taken)}")
     if payload.type != "skill" and not payload.tools:
-        tools = await _discover(payload, user, settings)
-        payload = payload.model_copy(update={"tools": await dedupe_tool_names(db, tools, payload.name)})
+        tools, version = await _discover(payload, user, settings)
+        payload = payload.model_copy(
+            update={"tools": await dedupe_tool_names(db, tools, payload.name), "version": payload.version or version}
+        )
     source = build_source(payload, created_by=user.sub)
     db.add(source)
     try:
@@ -60,6 +64,7 @@ async def create_source(payload: SourceIn, user: CurrentUser, db: DB, settings: 
     except IntegrityError as exc:  # lost a race with a concurrent creation
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Name already taken") from exc
+    await sync_source(settings, source)
     return SourceOut.model_validate(source)
 
 
@@ -83,18 +88,21 @@ async def refresh_source(source_id: str, user: CurrentUser, db: DB, settings: Ap
     if source.type == "skill":
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A skill has nothing to discover")
     stored = SourceIn.model_validate(SourceOut.model_validate(source).model_dump(exclude={"tools"}))
-    tools = await _discover(stored, user, settings)
+    tools, version = await _discover(stored, user, settings)
     sync_tools(source, await dedupe_tool_names(db, tools, source.name, exclude_source_id=source.id))
+    source.version = version or source.version
     await db.commit()
+    await sync_source(settings, source)
     return SourceOut.model_validate(source)
 
 
 @router.delete("/{source_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_source(source_id: str, user: CurrentUser, db: DB) -> Response:
+async def delete_source(source_id: str, user: CurrentUser, db: DB, settings: AppSettings) -> Response:
     """Delete a source and its tools; reserved to its creator and to admins."""
     source = await _get_visible(db, source_id, user)
     if source.created_by != user.sub and not user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only the creator or an admin can delete a source")
     await db.delete(source)
     await db.commit()
+    await forget_source(settings, source_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

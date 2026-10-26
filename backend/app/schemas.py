@@ -24,6 +24,8 @@ class SourceIn(BaseModel):
     name: Name
     type: SourceType
     description: str | None = None
+    # Optional: when empty, the version read by the discovery is used.
+    version: str | None = Field(default=None, max_length=100)
     url: str | None = None
     openapi_url: str | None = None
     auth_mode: AuthMode = "none"
@@ -66,6 +68,7 @@ class ToolOut(BaseModel):
     name: str
     description: str
     source: str
+    source_version: str | None = None
     type: SourceType
     tags: list[str] = []
     source_url: str | None = None
@@ -98,6 +101,7 @@ class SourceOut(BaseModel):
     name: str
     type: SourceType
     description: str | None
+    version: str | None
     url: str | None
     openapi_url: str | None
     auth_mode: AuthMode

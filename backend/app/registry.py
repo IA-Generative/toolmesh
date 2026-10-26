@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import User
 from app.db.models import Source, Tool
 from app.schemas import SourceIn, ToolIn, ToolOut
+from app.toolsearch.sparse import tokenize
 
 
 def is_visible(source: Source, user: User) -> bool:
@@ -15,6 +16,7 @@ def tool_out(source: Source, tool: Tool) -> ToolOut:
         name=tool.name,
         description=tool.description,
         source=source.name,
+        source_version=source.version,
         type=source.type,
         tags=tool.tags,
         source_url=source.openapi_url or source.url,
@@ -85,3 +87,33 @@ def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
         tool.path, tool.input_schema = incoming.path, incoming.input_schema
         tool.remote_name = incoming.remote_name
     source.tools.extend(Tool(**t.model_dump()) for t in wanted.values())
+
+
+def filter_tools(
+    tools: list[ToolOut],
+    query: str = "",
+    type: str | None = None,
+    tags: tuple[str, ...] = (),
+    source: str | None = None,
+    version: str | None = None,
+) -> list[ToolOut]:
+    """Keyword match and filters on the registry itself, used when no search index is available. With a query, the
+    tools matching every word are kept, those with the words in their name first."""
+    kept = [
+        t
+        for t in tools
+        if (not type or t.type == type)
+        and (not source or t.source == source)
+        and (not version or t.source_version == version)
+        and all(tag in t.tags for tag in tags)
+    ]
+    words = set(tokenize(query))
+    if not words:
+        return kept
+    ranked = []
+    for tool in kept:
+        in_name = set(tokenize(tool.name.replace("_", " ")))
+        text = in_name | set(tokenize(" ".join([tool.description, " ".join(tool.tags), tool.source])))
+        if words <= text:
+            ranked.append((len(words & in_name), tool))  # a word found in the name counts more
+    return [t for _, t in sorted(ranked, key=lambda r: -r[0])]

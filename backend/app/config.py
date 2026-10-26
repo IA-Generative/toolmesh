@@ -33,6 +33,18 @@ class Settings(BaseSettings):
     execution_timeout_seconds: float = 30
     execution_max_response_bytes: int = 1_000_000
 
+    # Search of tools (hybrid: sparse keywords + dense embeddings, fused by Qdrant). Without `qdrant_url` the search
+    # falls back to a plain keyword match on the registry. Without `embeddings_url` only the keywords are indexed.
+    qdrant_url: str | None = None
+    qdrant_api_key: str | None = None
+    qdrant_collection: str = "toolmesh-tools"
+    # OpenAI-compatible embeddings API: POST `<embeddings_url>/embeddings`.
+    embeddings_url: str | None = None
+    embeddings_api_key: str | None = None
+    embeddings_model: str | None = None
+    # Size of the vectors; probed with a first call when unset.
+    embeddings_dimensions: int | None = None
+
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
     redis_url: str = "redis://localhost:6379/0"

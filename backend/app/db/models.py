@@ -26,6 +26,8 @@ class Source(Base):
     name: Mapped[str] = mapped_column(String(100), unique=True)
     type: Mapped[str] = mapped_column(String(10))  # mcp | api | skill
     description: Mapped[str | None] = mapped_column(Text)
+    # Version of the API (`info.version` of its OpenAPI document) or of the MCP server, read at the discovery.
+    version: Mapped[str | None] = mapped_column(String(100))
     url: Mapped[str | None] = mapped_column(String(2048))
     openapi_url: Mapped[str | None] = mapped_column(String(2048))
     auth_mode: Mapped[str] = mapped_column(String(20), default="none")  # token_exchange | none
