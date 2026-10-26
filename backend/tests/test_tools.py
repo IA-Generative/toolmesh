@@ -101,49 +101,6 @@ async def test_configured_audience_is_enforced() -> None:
         decode_token(make_token(["user"], aud="other"), settings, _FakeJwks())
 
 
-async def test_downstream_call_uses_exchanged_token(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: dict[str, str] = {}
-
-    async def fake_exchange(settings: Settings, subject_token: str, audience: str) -> str:
-        calls["subject"], calls["audience"] = subject_token, audience
-        return "exchanged-token"
-
-    class _FakeResponse:
-        status_code = 200
-        text = ""
-
-        def json(self) -> dict:
-            return {"service": "downstream", "username": "alice"}
-
-    class _FakeHttpClient:
-        def __init__(self, **_: Any) -> None: ...
-        async def __aenter__(self) -> "_FakeHttpClient":
-            return self
-
-        async def __aexit__(self, *_: Any) -> None: ...
-        async def get(self, url: str, headers: dict[str, str]) -> _FakeResponse:
-            calls["authorization"] = headers["Authorization"]
-            return _FakeResponse()
-
-    monkeypatch.setattr("app.routers.downstream.exchange_token", fake_exchange)
-    monkeypatch.setattr("app.routers.downstream.httpx.AsyncClient", _FakeHttpClient)
-    token = make_token(["user"])
-
-    response = await client.get("/api/mock/downstream", headers=auth(token))
-
-    assert response.status_code == 200
-    assert calls == {"subject": token, "audience": "downstream-service", "authorization": "Bearer exchanged-token"}
-    assert response.json()["downstream_response"]["username"] == "alice"
-
-
-async def test_downstream_requires_auth(client: AsyncClient) -> None:
-    assert (await client.get("/api/mock/downstream")).status_code == 401
-
-
-async def test_mcp_datetime_requires_auth(client: AsyncClient) -> None:
-    assert (await client.get("/api/mock/mcp-datetime")).status_code == 401
-
-
 async def test_tools_expose_tags(client: AsyncClient) -> None:
     response = await client.get("/api/me/tools", headers=auth(make_token(["user"])))
 

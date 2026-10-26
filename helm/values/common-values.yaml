@@ -64,8 +64,6 @@ backend:
     TOOLMESH_FRONTEND_URL: "https://toolmesh.example.org"
     TOOLMESH_BACKEND_PUBLIC_URL: "https://toolmesh.example.org"
     TOOLMESH_SESSION_COOKIE_SECURE: "true"
-    # Cluster-internal address of the datetime MCP server (Service `toolmesh-mcp-datetime`).
-    TOOLMESH_MCP_DATETIME_URL: "http://toolmesh-mcp-datetime:80/mcp"
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:

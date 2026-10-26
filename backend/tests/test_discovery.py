@@ -174,7 +174,7 @@ async def test_discovery_failures_are_reported(client: AsyncClient, found: list[
 
 
 async def test_discovered_name_clashes_are_prefixed_by_the_source(client: AsyncClient, found: list[ToolIn]) -> None:
-    found[:] = [ToolIn(name="web_search"), ToolIn(name="fresh")]  # `web_search` belongs to the demo search-mcp
+    found[:] = [ToolIn(name="web_search"), ToolIn(name="fresh")]  # `web_search` belongs to the test search-mcp
 
     response = await create(client, declared_none())
 

@@ -51,6 +51,7 @@
   font-size: 0.8125rem; background: var(--background-contrast-grey); color: var(--text-default-grey);
 }
 .tool-modal__pill--ok { background: var(--background-contrast-success); color: var(--text-default-success); font-weight: 700; }
+.tool-modal__pill--ko { background: var(--background-contrast-error); color: var(--text-default-error); font-weight: 700; }
 .tool-modal__tabs { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
 .tool-modal__tabs fieldset { margin: 0; }
 .tool-modal__mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875rem; }

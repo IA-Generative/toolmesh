@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.migrate import alembic_config
 from app.db.models import Base
-from app.db.seed import seed_demo_data
+from tests.registry_data import seed_test_registry
 from tests.test_tools import auth, make_token
 
 API_SOURCE: dict[str, Any] = {
@@ -146,10 +146,10 @@ async def test_unknown_tool_is_404(client: AsyncClient) -> None:
     assert (await client.get("/api/me/tools/nope", headers=user())).status_code == 404
 
 
-async def test_seed_only_fills_an_empty_registry(session_factory: async_sessionmaker[AsyncSession]) -> None:
+async def test_seeding_only_fills_an_empty_registry(session_factory: async_sessionmaker[AsyncSession]) -> None:
     async with session_factory() as db:
-        assert await seed_demo_data(db) is True
-        assert await seed_demo_data(db) is False
+        assert await seed_test_registry(db) is True
+        assert await seed_test_registry(db) is False
 
 
 def test_migrations_match_the_models(tmp_path: Path) -> None:

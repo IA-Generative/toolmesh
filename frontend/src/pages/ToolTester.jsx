@@ -6,27 +6,12 @@ import Select from "@codegouvfr/react-dsfr/Select";
 import { SegmentedControl } from "@codegouvfr/react-dsfr/SegmentedControl";
 import JsonView from "../tools/JsonView";
 import SchemaForm from "../tools/SchemaForm";
+import { callTool } from "../auth/api";
 import { addHistory } from "../tools/history";
 import { DEFAULT_MODEL, MODELS, modelLabel } from "../tools/models";
 import ToolCard from "../tools/ToolCard";
 import { toArguments, toFormValues, validateArguments } from "../tools/schema";
 import "./ToolTester.css";
-
-// Exécution simulée, en attendant l'appel réel via le backend.
-const simulateCall = (tool, args, model) =>
-  new Promise((resolve) =>
-    setTimeout(
-      () =>
-        resolve({
-          simulated: true,
-          tool: tool.name,
-          ...(model && { model }),
-          arguments: args,
-          result: "Réponse simulée : le backend n'est pas encore branché.",
-        }),
-      600,
-    ),
-  );
 
 function CopyButton({ value }) {
   const [copied, setCopied] = useState(false);
@@ -90,16 +75,20 @@ function Output({ running, output }) {
       </div>
     );
   }
-  const shown = tab === "response" ? output.response : output.request;
+  const failed = Boolean(output.error);
+  const rejected = !failed && !output.response.ok;
+  const shown = tab === "request" ? output.request : failed ? { error: output.error } : output.response.content;
   return (
     <>
       <div className="tool-modal__status">
-        <span className="tool-modal__pill tool-modal__pill--ok">
-          <span className="fr-icon-checkbox-circle-fill fr-icon--sm" aria-hidden="true" /> Succès
+        <span className={`tool-modal__pill ${failed || rejected ? "tool-modal__pill--ko" : "tool-modal__pill--ok"}`}>
+          <span className={`${failed || rejected ? "fr-icon-error-fill" : "fr-icon-checkbox-circle-fill"} fr-icon--sm`} aria-hidden="true" />{" "}
+          {failed ? "Échec" : rejected ? "Refusé par l'outil" : "Succès"}
         </span>
+        {output.response?.status != null && <span className="tool-modal__pill">HTTP {output.response.status}</span>}
         <span className="tool-modal__pill">{output.ms} ms</span>
         {output.model && <span className="tool-modal__pill">{modelLabel(output.model)}</span>}
-        <span className="tool-modal__pill">simulation</span>
+        {output.response?.truncated && <span className="tool-modal__pill">tronqué</span>}
       </div>
       <div className="tool-modal__tabs">
         <SegmentedControl
@@ -183,12 +172,20 @@ export default function ToolTester({ tool, open, onClose, initial = null }) {
     }
     setRunning(true);
     setOutput(null);
+    const usedModel = isSkill ? model : null;
+    const request = isSkill ? { model, arguments: args } : args;
     const started = performance.now();
-    const response = await simulateCall(tool, args, isSkill ? model : null);
-    const ms = Math.round(performance.now() - started);
-    setOutput({ request: isSkill ? { model, arguments: args } : args, response, ms, model: isSkill ? model : null });
-    addHistory({ tool: tool.name, type: tool.type, args, model: isSkill ? model : null, ok: true, ms });
-    setRunning(false);
+    try {
+      const response = await callTool(tool.name, args, usedModel);
+      setOutput({ request, response, ms: response.duration_ms, model: usedModel });
+      addHistory({ tool: tool.name, type: tool.type, args, model: usedModel, ok: response.ok, ms: response.duration_ms });
+    } catch (e) {
+      const ms = Math.round(performance.now() - started);
+      setOutput({ request, error: e.message, ms, model: usedModel });
+      addHistory({ tool: tool.name, type: tool.type, args, model: usedModel, ok: false, ms });
+    } finally {
+      setRunning(false);
+    }
   }, [schema, running, rawMode, raw, values, tool, isSkill, model]);
 
   // Ctrl/Cmd + Entrée lance l'exécution depuis n'importe quel champ.

@@ -6,7 +6,7 @@ import Input from "@codegouvfr/react-dsfr/Input";
 import RadioButtons from "@codegouvfr/react-dsfr/RadioButtons";
 import Stepper from "@codegouvfr/react-dsfr/Stepper";
 import { createSource, discoverTools } from "../auth/api";
-import { MOCK_OPERATIONS, isExposed, splitLines } from "../tools/endpoints";
+import { splitLines } from "../tools/endpoints";
 import ToolsEditor from "../tools/ToolsEditor";
 import { NAME_HINT, NAME_RE, draftFromDiscovered, parseSchema, toolErrors } from "../tools/toolDraft";
 
@@ -266,7 +266,7 @@ export default function AddTool() {
       )}
 
       {step === "Endpoints" && (
-        <EndpointRules form={form} set={set} />
+        <EndpointRules form={form} set={set} onPreview={() => discoverTools(buildPayload({ ...form, tools: [] }))} />
       )}
 
       {step === "Outils" && (
@@ -324,9 +324,24 @@ export default function AddTool() {
   );
 }
 
-function EndpointRules({ form, set }) {
-  const include = splitLines(form.includePatterns);
-  const exclude = splitLines(form.excludePatterns);
+function EndpointRules({ form, set, onPreview }) {
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const run = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setPreview(await onPreview());
+    } catch (e) {
+      setPreview(null);
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <p className="fr-text--sm">
@@ -345,19 +360,22 @@ function EndpointRules({ form, set }) {
         textArea
         nativeTextAreaProps={{ value: form.excludePatterns, onChange: set("excludePatterns"), rows: 3 }}
       />
-      <h2 className="fr-h6">Aperçu (endpoints simulés)</h2>
-      <ul className="fr-raw-list" aria-live="polite">
-        {MOCK_OPERATIONS.map((op) => {
-          const exposed = isExposed(op, include, exclude);
-          return (
-            <li key={op} className="fr-mb-1v">
-              <span className={`${exposed ? "fr-icon-checkbox-circle-fill" : "fr-icon-close-circle-line"} fr-icon--sm fr-mr-1w`} aria-hidden="true" />
-              <code style={exposed ? undefined : { textDecoration: "line-through" }}>{op}</code>
-              <span className="fr-sr-only">{exposed ? " : exposé" : " : exclu"}</span>
-            </li>
-          );
-        })}
-      </ul>
+      <Button type="button" priority="secondary" iconId="fr-icon-search-line" onClick={run} disabled={loading}>
+        {loading ? "Lecture du Swagger…" : "Prévisualiser les endpoints"}
+      </Button>
+      {error && <Alert className="fr-mt-2w" severity="error" small title="Prévisualisation impossible" description={error} />}
+      {preview && (
+        <div aria-live="polite" className="fr-mt-2w">
+          <h2 className="fr-h6">{preview.length} endpoint{preview.length > 1 ? "s" : ""} exposé{preview.length > 1 ? "s" : ""}</h2>
+          <ul className="fr-raw-list">
+            {preview.map((t) => (
+              <li key={t.name} className="fr-mb-1v">
+                <code>{t.method} {t.path}</code>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

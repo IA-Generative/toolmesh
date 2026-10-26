@@ -1,3 +1,5 @@
+"""Sources and tools the API tests start from."""
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -5,9 +7,9 @@ from app.db.models import Source
 from app.registry import build_source
 from app.schemas import SourceIn
 
-SEED_USER = "seed"
+TEST_USER = "seed"
 
-DEMO_SOURCES = [
+TEST_SOURCES = [
     SourceIn(
         name="search-mcp",
         type="mcp",
@@ -160,10 +162,10 @@ DEMO_SOURCES = [
 ]
 
 
-async def seed_demo_data(db: AsyncSession) -> bool:
-    """Insert the demo sources if the registry is empty; returns whether it did."""
+async def seed_test_registry(db: AsyncSession) -> bool:
+    """Insert the test sources if the registry is empty; returns whether it did."""
     if await db.scalar(select(func.count()).select_from(Source)):
         return False
-    db.add_all(build_source(payload, created_by=SEED_USER) for payload in DEMO_SOURCES)
+    db.add_all(build_source(payload, created_by=TEST_USER) for payload in TEST_SOURCES)
     await db.commit()
     return True

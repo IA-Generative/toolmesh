@@ -63,7 +63,12 @@ async def dedupe_tool_names(
     if exclude_source_id:
         query = query.where(Tool.source_id != exclude_source_id)
     taken = set((await db.scalars(query)).all())
-    return [t.model_copy(update={"name": f"{source_name}.{t.name}"[:100]}) if t.name in taken else t for t in tools]
+    return [
+        t.model_copy(update={"name": f"{source_name}.{t.name}"[:100], "remote_name": t.remote_name or t.name})
+        if t.name in taken
+        else t
+        for t in tools
+    ]
 
 
 def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
@@ -76,4 +81,5 @@ def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
         incoming = wanted.pop(tool.name)
         tool.description, tool.tags, tool.method = incoming.description, incoming.tags, incoming.method
         tool.path, tool.input_schema = incoming.path, incoming.input_schema
+        tool.remote_name = incoming.remote_name
     source.tools.extend(Tool(**t.model_dump()) for t in wanted.values())

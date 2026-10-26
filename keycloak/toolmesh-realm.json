@@ -15,12 +15,6 @@
       }
     ],
     "client": {
-      "downstream-service": [
-        {
-          "name": "access",
-          "description": "May call the downstream service"
-        }
-      ],
       "mcp-datetime": [
         {
           "name": "access",
@@ -127,15 +121,6 @@
       "fullScopeAllowed": false
     },
     {
-      "clientId": "downstream-service",
-      "name": "Mock downstream service (exchange target)",
-      "enabled": true,
-      "publicClient": false,
-      "secret": "downstream-secret",
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false
-    },
-    {
       "clientId": "mcp-datetime",
       "name": "Datetime MCP server (exchange target)",
       "enabled": true,
@@ -173,9 +158,6 @@
         "user"
       ],
       "clientRoles": {
-        "downstream-service": [
-          "access"
-        ],
         "mcp-datetime": [
           "access"
         ],
@@ -203,9 +185,6 @@
         "admin"
       ],
       "clientRoles": {
-        "downstream-service": [
-          "access"
-        ],
         "mcp-datetime": [
           "access"
         ],
@@ -222,9 +201,6 @@
         "user"
       ],
       "clientRoles": {
-        "downstream-service": [
-          "access"
-        ],
         "mcp-datetime": [
           "access"
         ],
@@ -258,14 +234,6 @@
     }
   ],
   "clientScopeMappings": {
-    "downstream-service": [
-      {
-        "client": "toolmesh",
-        "roles": [
-          "access"
-        ]
-      }
-    ],
     "mcp-datetime": [
       {
         "client": "toolmesh",

@@ -15,26 +15,23 @@ class Settings(BaseSettings):
     # One confidential client for the browser login (code + PKCE), the password/refresh grants and token exchange.
     keycloak_client_id: str = "toolmesh"
     keycloak_client_secret: str = "toolmesh-secret"
-    # Audience to enforce on incoming tokens; unset means `aud` is not checked (only the mock downstream sets it).
+    # Audience to enforce on incoming tokens; unset means `aud` is not checked.
     oidc_audience: str | None = None
-
-    downstream_url: str = "http://localhost:8020"
-    downstream_audience: str = "downstream-service"
-    mcp_datetime_url: str = "http://localhost:8030/mcp"
-    mcp_datetime_audience: str = "mcp-datetime"
 
     # Registry of sources and tools.
     database_url: str = "postgresql+asyncpg://toolmesh:toolmesh@localhost:5432/toolmesh"
     # Apply the Alembic migrations when the app starts.
     auto_migrate: bool = True
-    # Insert a few example sources and tools when the registry is empty (development only).
-    seed_demo_data: bool = False
 
     # Discovery: the backend fetches OpenAPI specs and lists MCP tools at addresses given by users.
     # Loopback/private addresses are refused unless this is set (link-local ones, e.g. cloud metadata, never pass).
     discovery_allow_private_hosts: bool = False
     discovery_timeout_seconds: float = 15
     discovery_max_spec_bytes: int = 5_000_000
+
+    # Execution: calls to the registered services made on behalf of a user (same address rules as the discovery).
+    execution_timeout_seconds: float = 30
+    execution_max_response_bytes: int = 1_000_000
 
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
