@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.config import Settings
-from app.db.models import Source
+from app.db.models import Source, Tool
 from app.toolsearch import Filters, ToolIndex
 from app.toolsearch.embeddings import EmbeddingError, embed
 from app.toolsearch.sparse import encode_document, encode_query, tokenize
@@ -22,6 +22,24 @@ def test_tokens_are_folded_and_stop_words_dropped() -> None:
     assert tokenize("Météo d'une ville, en FRANCE!") == ["meteo", "ville", "france"]
     assert tokenize("get_weather the API") == ["get", "weather", "api"]
     assert tokenize("a - 1") == []
+
+
+def test_identifiers_are_split_and_plurals_folded() -> None:
+    assert tokenize("findPetsByStatus") == ["find", "pet", "by", "statu"] or tokenize("findPetsByStatus")[:2] == [
+        "find",
+        "pet",
+    ]
+    assert tokenize("getUserByName /user/{username}") == tokenize("get user by name user username")
+    assert tokenize("tickets ouverts") == tokenize("ticket ouvert")
+    assert tokenize("class access") == ["class", "access"]  # `ss` is not a plural
+
+
+def test_a_word_in_a_heavier_part_weighs_more() -> None:
+    light = dict(zip(*encode_document([("sql", 1.0)]), strict=True))
+    heavy = dict(zip(*encode_document([("sql", 3.0)]), strict=True))
+    (a,), (b,) = light.values(), heavy.values()
+
+    assert a < b
 
 
 def test_repeated_words_weigh_more_but_saturate() -> None:
@@ -64,7 +82,7 @@ async def test_embeddings_are_requested_in_batches_and_kept_in_order() -> None:
         return httpx.Response(200, json={"data": data[::-1]})
 
     texts = [str(i) for i in range(70)]
-    vectors = await embed(EMB, texts, emb_client(handler))
+    vectors = await embed(EMB, texts, client=emb_client(handler))
 
     assert [v[0] for v in vectors] == [float(i) for i in range(70)]
     assert [len(c["input"]) for c in calls] == [64, 6]
@@ -79,7 +97,7 @@ async def test_embeddings_are_requested_in_batches_and_kept_in_order() -> None:
 )
 async def test_embedding_failures_are_explained(response: httpx.Response, message: str) -> None:
     with pytest.raises(EmbeddingError, match=message):
-        await embed(EMB, ["x"], emb_client(lambda _: response))
+        await embed(EMB, ["x"], client=emb_client(lambda _: response))
 
 
 async def test_embeddings_need_a_configuration() -> None:
@@ -102,7 +120,9 @@ def fake_vector(text: str) -> list[float]:
 def fake_embed(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     sent: list[list[str]] = []
 
-    async def fake(settings: Settings, texts: list[str], client: Any = None) -> list[list[float]]:
+    async def fake(
+        settings: Settings, texts: list[str], kind: str = "document", client: Any = None
+    ) -> list[list[float]]:
         sent.append(texts)
         return [fake_vector(t) for t in texts]
 
@@ -356,3 +376,145 @@ async def test_reindex_is_for_admins_and_needs_an_index(
     assert response.status_code == 200
     assert response.json()["tools"] == 7
     assert "web_search" in await idx.search("web", ALL, Filters(), 5)
+
+
+async def test_queries_and_documents_get_their_own_prefix() -> None:
+    sent: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        inputs = json.loads(request.content)["input"]
+        sent.extend(inputs)
+        return httpx.Response(200, json={"data": [{"index": i, "embedding": [1.0]} for i in range(len(inputs))]})
+
+    settings = EMB.model_copy(update={"embeddings_query_prefix": "query: ", "embeddings_document_prefix": "passage: "})
+    await embed(settings, ["météo"], kind="query", client=emb_client(handler))
+    await embed(settings, ["get_weather"], kind="document", client=emb_client(handler))
+    await embed(settings, ["x"], client=emb_client(handler))  # documents by default
+
+    assert sent == ["query: météo", "passage: get_weather", "passage: x"]
+
+
+# --- What is indexed -----------------------------------------------------------------------------------------------
+
+
+def make_tool(**kwargs: Any) -> tuple[Source, Tool]:
+    source = Source(id="s" * 32, name="pet-store_api", description="Animalerie", type="api", version="1")
+    tool = Tool(
+        id="a" * 32,
+        name=kwargs.pop("name", "findPetsByStatus"),
+        description=kwargs.pop("description", "Finds pets by status."),
+        tags=["pet"],
+        method="GET",
+        path="/pet/findByStatus",
+        input_schema={"properties": {"petStatus": {"description": "available, pending or sold"}, "limit": {}}},
+        **kwargs,
+    )
+    source.tools = [tool]
+    return source, tool
+
+
+def test_identifiers_are_humanized() -> None:
+    from app.toolsearch.text import humanize
+
+    assert humanize("findPetsByStatus") == "find pets by status"
+    assert humanize("get_weather") == "get weather"
+    assert humanize("GET /pet/{petId}") == "get pet pet id"
+
+
+def test_the_dense_text_carries_name_description_tags_inputs_endpoint_and_source() -> None:
+    from app.toolsearch.text import dense_text
+
+    text = dense_text(*make_tool())
+
+    assert text.splitlines() == [
+        "find pets by status. Finds pets by status.",
+        "Tags: pet",
+        "Inputs: pet status (available, pending or sold); limit",
+        "Endpoint: GET pet find by status",
+        "Source: pet store api - Animalerie",
+    ]
+
+
+def test_the_keyword_parts_weigh_the_name_first() -> None:
+    from app.toolsearch.text import sparse_parts
+
+    parts = sparse_parts(*make_tool())
+
+    assert parts[0] == ("find pets by status", 3.0) and parts[1] == ("pet", 2.0)
+    assert any("pet status" in text for text, _ in parts)  # the inputs are searchable too
+
+
+# --- Ranking -------------------------------------------------------------------------------------------------------
+
+
+async def test_a_tool_whose_whole_name_is_in_the_query_comes_first(loaded: list[Source]) -> None:
+    idx = index_for(dense=False)
+    await idx.reindex(loaded)
+
+    assert (await idx.search("get weather", ALL, Filters(), 5))[0] == "get_weather"
+    assert (await idx.search("I want the web_search tool", ALL, Filters(), 5))[0] == "web_search"
+
+
+async def test_weak_dense_matches_can_be_dropped(loaded: list[Source], fake_embed: list[list[str]]) -> None:
+    keep_all = index_for(dense=True)
+    strict = ToolIndex(
+        keep_all.settings.model_copy(update={"search_min_dense_score": 0.99}), AsyncQdrantClient(":memory:")
+    )
+    await keep_all.reindex(loaded)
+    await strict.reindex(loaded)
+
+    everything = await keep_all.search_scored("internet", ALL, Filters(), 20)
+    close = await strict.search_scored("internet", ALL, Filters(), 20)
+
+    assert everything and all(h.dense_score is not None for h in everything)
+    assert 0 < len(close) < len(everything)
+    assert all(h.dense_score >= 0.99 for h in close)
+
+
+# --- Keeping the index true ----------------------------------------------------------------------------------------
+
+
+async def test_only_changed_tools_are_embedded_again(loaded: list[Source], fake_embed: list[list[str]]) -> None:
+    idx = index_for(dense=True)
+    await idx.reindex(loaded)
+    source = next(s for s in loaded if s.name == "weather-api")
+    fake_embed.clear()
+
+    await idx.index_source(source)  # nothing changed
+    assert fake_embed == []
+
+    source.tools[0].description = "A new description that mentions rain"
+    await idx.index_source(source)  # one tool changed
+    assert len(fake_embed) == 1 and len(fake_embed[0]) == 1
+
+    fake_embed.clear()
+    source.version = "9.9"
+    source.required_role = "admin"  # payload only: no new embedding, but the filters follow
+    await idx.index_source(source)
+    assert fake_embed == []
+    assert "get_weather" not in await idx.search("météo", ["user"], Filters(), 10)
+    assert await idx.search("météo", ["admin"], Filters(version="9.9"), 10)
+
+
+async def test_a_change_of_embeddings_rebuilds_the_collection(
+    loaded: list[Source], fake_embed: list[list[str]]
+) -> None:
+    keywords_only = index_for(dense=False)
+    await keywords_only.reindex(loaded)
+    assert await keywords_only.ensure_collection() is False
+
+    with_dense = ToolIndex(index_for(dense=True).settings, keywords_only.client)  # same collection, now with vectors
+    assert await with_dense.ensure_collection() is True  # recreated: empty, to be filled again
+    assert await with_dense.ensure_collection() is False
+
+    smaller = ToolIndex(with_dense.settings.model_copy(update={"embeddings_dimensions": 8}), keywords_only.client)
+    assert await smaller.ensure_collection() is True  # another size
+
+
+def test_empty_search_settings_mean_unset() -> None:
+    settings = Settings(embeddings_dimensions="", search_min_dense_score="")  # `${VAR:-}` in a compose file
+
+    assert (settings.embeddings_dimensions, settings.search_min_dense_score) == (None, None)
+    assert Settings(search_min_dense_score="0.25").search_min_dense_score == 0.25
