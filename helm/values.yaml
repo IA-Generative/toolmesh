@@ -3704,3 +3704,8 @@ cnpg:
 # @section -- Dependencies
 searxng:
   enabled: false
+
+# -- Bundled Qdrant (search index of the tools). Off by default: point `TOOLMESH_QDRANT_URL` at an existing instance instead (without any, the search falls back to a keyword match on the registry).
+# @section -- Dependencies
+qdrant:
+  enabled: false

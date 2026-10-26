@@ -11,6 +11,7 @@ Kubernetes: `>=1.25.0-0`
 | Repository | Name | Version |
 |------------|------|---------|
 | https://cloudnative-pg.github.io/charts | cnpg(cluster) | 0.8.1 |
+| https://qdrant.github.io/qdrant-helm | qdrant | 1.20.0 |
 | https://unknowniq.github.io/helm-charts | searxng | 0.1.11 |
 | oci://registry-1.docker.io/cloudpirates | redis(redis) | 0.27.9 |
 
@@ -28,6 +29,7 @@ Kubernetes: `>=1.25.0-0`
 | fullnameOverride | string | `""` | String to fully override the default application name. |
 | jobs | object | `{}` | Map of Jobs to create (e.g. one-off DB migrations, data seeding, archiving...). Each key is used as the job name and as its `app.kubernetes.io/component` label. Every entry accepts the fields documented in the commented example below. |
 | nameOverride | string | `""` | Provide a name in place of the default application name. |
+| qdrant | object | `{"enabled":false}` | Bundled Qdrant (search index of the tools). Off by default: point `TOOLMESH_QDRANT_URL` at an existing instance instead (without any, the search falls back to a keyword match on the registry). |
 | redis | object | `{"enabled":false}` | Bundled Redis (sessions of the backend). Off by default: point `TOOLMESH_REDIS_URL` at an existing Redis instead. |
 | searxng | object | `{"enabled":false}` | Bundled SearXNG (web search engine behind `mcp_search`). Off by default: point `MCP_SEARCH_SEARXNG_URL` at an existing instance instead. |
 

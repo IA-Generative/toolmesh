@@ -8,5 +8,8 @@ dependencies:
 - name: searxng
   repository: https://unknowniq.github.io/helm-charts
   version: 0.1.11
-digest: sha256:244240342a0e805b86a25509c46ffa46220d2e537f68e65d8011f4d99a3cd462
-generated: "2026-10-26T15:02:17.446485984+01:00"
+- name: qdrant
+  repository: https://qdrant.github.io/qdrant-helm
+  version: 1.20.0
+digest: sha256:e152a672a3192bd29d4a578799f75aa0cf5d435f5a3d996e4626f713039311bc
+generated: "2026-10-26T17:34:44.323856684+01:00"
