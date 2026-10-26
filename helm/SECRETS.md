@@ -116,11 +116,14 @@ Index de recherche des outils (Qdrant, sous-chart `qdrant`) et, facultativement,
 | `QDRANT_API_KEY` | Clé d'API de Qdrant. L'opérateur en tire `TOOLMESH_QDRANT_API_KEY` pour le backend | ✔ |
 | `TOOLMESH_EMBEDDINGS_URL` | URL de base d'une API d'embeddings compatible OpenAI (`POST <url>/embeddings`), p. ex. le hub LLM | |
 | `TOOLMESH_EMBEDDINGS_API_KEY` | Clé de cette API | |
-| `TOOLMESH_EMBEDDINGS_MODEL` | Modèle d'embeddings à utiliser | |
+| `TOOLMESH_EMBEDDINGS_MODEL` | Modèle d'embeddings à utiliser (multilingue : les outils et les questions sont en français et en anglais) | |
+| `TOOLMESH_EMBEDDINGS_QUERY_PREFIX`, `TOOLMESH_EMBEDDINGS_DOCUMENT_PREFIX` | Préfixes des modèles entraînés avec des instructions (e5 : `query: ` / `passage: `) | |
+| `TOOLMESH_SEARCH_MIN_DENSE_SCORE` | Score cosinus sous lequel une correspondance sémantique est ignorée (propre au modèle) | |
 
 Sans les trois clés `TOOLMESH_EMBEDDINGS_*`, seuls les mots-clés sont indexés (recherche `keyword`) ; avec elles, la recherche
 est hybride (mots-clés et sens). Changer de modèle d'embeddings change la taille des vecteurs : relancez ensuite
-`POST /api/admin/reindex` (rôle `admin`) pour reconstruire l'index.
+`POST /api/admin/reindex` (rôle `admin`) pour reconstruire l'index. Le préfixe, le seuil et leur réglage se mesurent avec
+`backend/eval` (voir `docs/search.md`).
 
 ```bash
 vault kv put exploration/dev/toolmesh/search \
