@@ -1,4 +1,4 @@
-# Dev stack: Keycloak (realm auto-imported) + backend with hot reload.
+# Dev stack: Keycloak (realm auto-imported) + backend and frontend with hot reload.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
@@ -68,3 +68,17 @@ services:
       - keycloak
     ports:
       - "8030:8000"
+
+  # React SPA (Vite dev server with hot reload). Calls the backend on http://localhost:8010 from the browser.
+  frontend:
+    image: oven/bun:1
+    working_dir: /app
+    command: ["sh", "-c", "bun install --frozen-lockfile && bun run dev --host 0.0.0.0"]
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+
+volumes:
+  frontend_node_modules:
