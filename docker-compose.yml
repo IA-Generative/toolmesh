@@ -46,6 +46,8 @@ services:
       TOOLMESH_REDIS_URL: redis://redis:6379/0
       TOOLMESH_DATABASE_URL: postgresql+asyncpg://toolmesh:toolmesh@postgres:5432/toolmesh
       TOOLMESH_SEED_DEMO_DATA: "true"
+      # Sources to discover live on the compose network (private addresses).
+      TOOLMESH_DISCOVERY_ALLOW_PRIVATE_HOSTS: "true"
       TOOLMESH_FRONTEND_URL: ${TOOLMESH_FRONTEND_URL:-http://localhost:3000}
       TOOLMESH_BACKEND_PUBLIC_URL: http://localhost:${TOOLMESH_BACKEND_PORT:-8010}
     ports:

@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     # Insert a few example sources and tools when the registry is empty (development only).
     seed_demo_data: bool = False
 
+    # Discovery: the backend fetches OpenAPI specs and lists MCP tools at addresses given by users.
+    # Loopback/private addresses are refused unless this is set (link-local ones, e.g. cloud metadata, never pass).
+    discovery_allow_private_hosts: bool = False
+    discovery_timeout_seconds: float = 15
+    discovery_max_spec_bytes: int = 5_000_000
+
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
     redis_url: str = "redis://localhost:6379/0"
