@@ -1,0 +1,372 @@
+[
+ {
+  "query": "web_search",
+  "expect": [
+   "web_search"
+  ],
+  "category": "identifier"
+ },
+ {
+  "query": "findPetsByStatus",
+  "expect": [
+   "findPetsByStatus"
+  ],
+  "category": "identifier"
+ },
+ {
+  "query": "get weather",
+  "expect": [
+   "get_weather"
+  ],
+  "category": "identifier"
+ },
+ {
+  "query": "convert timezone",
+  "expect": [
+   "convert_timezone"
+  ],
+  "category": "identifier"
+ },
+ {
+  "query": "business days",
+  "expect": [
+   "business_days"
+  ],
+  "category": "identifier"
+ },
+ {
+  "query": "look something up on the internet",
+  "expect": [
+   "web_search"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "read the content of a web page",
+  "expect": [
+   "fetch_page"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "what time is it in Tokyo",
+  "expect": [
+   "now"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "how many days between two dates",
+  "expect": [
+   "date_diff"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "first and last day of the quarter",
+  "expect": [
+   "period_bounds"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "find available pets",
+  "expect": [
+   "findPetsByStatus"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "remove a pet from the store",
+  "expect": [
+   "deletePet"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "sign in with a username and password",
+  "expect": [
+   "loginUser"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "how many animals are in stock",
+  "expect": [
+   "getInventory"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "add one month to a date",
+  "expect": [
+   "add_to_date"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "which day of the week is it",
+  "expect": [
+   "weekday"
+  ],
+  "category": "paraphrase-en"
+ },
+ {
+  "query": "chercher une information sur internet",
+  "expect": [
+   "web_search"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "lire le contenu d'une page web",
+  "expect": [
+   "fetch_page"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "quelle heure est-il à New York",
+  "expect": [
+   "now"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "combien de jours entre deux dates",
+  "expect": [
+   "date_diff"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "quel temps fait-il à Lyon",
+  "expect": [
+   "get_weather"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "va-t-il pleuvoir cette semaine à Paris",
+  "expect": [
+   "get_forecast"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "créer un ticket pour un bug",
+  "expect": [
+   "create_issue"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "voir les demandes de fusion en attente",
+  "expect": [
+   "list_merge_requests"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "envoyer un mail à un collègue",
+  "expect": [
+   "send_email"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "retrouver un message reçu la semaine dernière",
+  "expect": [
+   "search_emails"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "faire un résumé d'un long document",
+  "expect": [
+   "summarize"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "passer ce texte en anglais",
+  "expect": [
+   "translate"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "repérer les noms de personnes et de lieux dans un texte",
+  "expect": [
+   "extract_entities"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "ajouter trois jours ouvrés à une date",
+  "expect": [
+   "add_business_days"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "nombre de jours ouvrés entre deux dates",
+  "expect": [
+   "business_days"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "convertir une heure de Paris vers Montréal",
+  "expect": [
+   "convert_timezone"
+  ],
+  "category": "paraphrase-fr"
+ },
+ {
+  "query": "je veux savoir s'il faut prendre un parapluie",
+  "expect": [
+   "get_forecast"
+  ],
+  "category": "intent"
+ },
+ {
+  "query": "un animal à adopter",
+  "expect": [
+   "findPetsByStatus"
+  ],
+  "category": "intent"
+ },
+ {
+  "query": "trouver du code open source sur un sujet",
+  "expect": [
+   "search_repositories"
+  ],
+  "category": "intent"
+ },
+ {
+  "query": "interroger les données de l'entreprise",
+  "expect": [
+   "query_database"
+  ],
+  "category": "intent"
+ },
+ {
+  "query": "meteo ville temperature",
+  "expect": [
+   "get_weather"
+  ],
+  "category": "cross-language"
+ },
+ {
+  "query": "weather forecast next week",
+  "expect": [
+   "get_forecast"
+  ],
+  "category": "cross-language"
+ },
+ {
+  "query": "traduction",
+  "expect": [
+   "translate"
+  ],
+  "category": "cross-language"
+ },
+ {
+  "query": "envoyer un email",
+  "expect": [
+   "send_email"
+  ],
+  "category": "cross-language"
+ },
+ {
+  "query": "heure actuelle",
+  "expect": [
+   "now"
+  ],
+  "category": "filter",
+  "filters": {
+   "source": "datetime-mcp"
+  }
+ },
+ {
+  "query": "résumer un article",
+  "expect": [
+   "summarize"
+  ],
+  "category": "filter",
+  "filters": {
+   "type": "skill"
+  }
+ },
+ {
+  "query": "récupérer une commande",
+  "expect": [
+   "getOrderById"
+  ],
+  "category": "filter",
+  "filters": {
+   "source": "petstore"
+  }
+ },
+ {
+  "query": "voir les tickets ouverts",
+  "expect": [
+   "list_issues"
+  ],
+  "category": "filter",
+  "filters": {
+   "version": "v4"
+  }
+ },
+ {
+  "query": "recherche",
+  "expect": [
+   "web_search"
+  ],
+  "category": "filter",
+  "filters": {
+   "type": "mcp",
+   "tags": [
+    "recherche"
+   ]
+  }
+ },
+ {
+  "query": "prévisions",
+  "expect": [
+   "get_forecast"
+  ],
+  "category": "filter",
+  "filters": {
+   "tags": [
+    "météo"
+   ]
+  }
+ },
+ {
+  "query": "recette de la tarte aux pommes",
+  "expect": [],
+  "category": "no-answer"
+ },
+ {
+  "query": "cours du bitcoin aujourd'hui",
+  "expect": [],
+  "category": "no-answer"
+ },
+ {
+  "query": "how to play the guitar",
+  "expect": [],
+  "category": "no-answer"
+ },
+ {
+  "query": "horoscope du jour",
+  "expect": [],
+  "category": "no-answer"
+ },
+ {
+  "query": "résultats du match de football",
+  "expect": [],
+  "category": "no-answer"
+ }
+]
