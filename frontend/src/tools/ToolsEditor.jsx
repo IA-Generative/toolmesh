@@ -9,6 +9,7 @@ import { METHODS, NAME_HINT, emptyTool } from "./toolDraft";
 export default function ToolsEditor({ tools, isApi, errors, onChange, onDiscover }) {
   const [discovering, setDiscovering] = useState(false);
   const [discoverError, setDiscoverError] = useState(null);
+  const [detectedVersion, setDetectedVersion] = useState(null);
   const update = (id, patch) => onChange(tools.map((t) => (t.id === id ? { ...t, ...patch } : t)));
   const remove = (id) => onChange(tools.filter((t) => t.id !== id));
   const manual = tools.filter((t) => !t.discovered);
@@ -19,7 +20,9 @@ export default function ToolsEditor({ tools, isApi, errors, onChange, onDiscover
     setDiscoverError(null);
     try {
       // Les outils saisis à la main sont conservés ; la découverte remplace seulement les précédents résultats.
-      onChange([...manual, ...(await onDiscover())]);
+      const { tools: found, version } = await onDiscover();
+      setDetectedVersion(version);
+      onChange([...manual, ...found]);
     } catch (e) {
       setDiscoverError(e.message);
     } finally {
@@ -52,7 +55,10 @@ export default function ToolsEditor({ tools, isApi, errors, onChange, onDiscover
 
       {discovered.length > 0 && (
         <>
-          <h2 className="fr-h6 fr-mt-2w" aria-live="polite">{discovered.length} outil{discovered.length > 1 ? "s" : ""} découvert{discovered.length > 1 ? "s" : ""}</h2>
+          <h2 className="fr-h6 fr-mt-2w" aria-live="polite">
+            {discovered.length} outil{discovered.length > 1 ? "s" : ""} découvert{discovered.length > 1 ? "s" : ""}
+            {detectedVersion && <span className="fr-text--regular"> · version {detectedVersion}</span>}
+          </h2>
           <ul className="fr-raw-list">
             {discovered.map((t) => (
               <li key={t.id} style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0.5rem 0", borderBottom: "1px solid var(--border-default-grey)" }}>

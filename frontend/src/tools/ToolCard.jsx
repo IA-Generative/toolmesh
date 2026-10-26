@@ -33,7 +33,7 @@ export default function ToolCard({ tool, to, activeTags = [], onTag, titleAs: Ti
               {tool.required_role && <li><Badge as="span" small noIcon>Rôle : {tool.required_role}</Badge></li>}
             </ul>
           </div>
-          <p className="fr-card__detail fr-icon-links-line">Source : {tool.source}</p>
+          <p className="fr-card__detail fr-icon-links-line">Source : {tool.source}{tool.source_version ? ` · ${tool.source_version}` : ""}</p>
           {tool.method && tool.path && <p className="fr-card__detail"><code>{tool.method} {tool.path}</code></p>}
         </div>
         {tags.length > 0 && (

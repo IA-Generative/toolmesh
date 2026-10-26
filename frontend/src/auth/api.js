@@ -23,7 +23,7 @@ export async function logout() {
 export async function fetchMyTools() {
   const res = await fetch(`${API_URL}/api/me/tools`, { credentials: "include" });
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
-  return res.json(); // { user, roles, tools: [{ name, description, source, type, tags, source_url, method, path, input_schema, auth_mode, audience, required_role }] }
+  return res.json(); // { user, roles, tools: [{ name, description, source, type, tags, source_url, source_version, method, path, input_schema, auth_mode, audience, required_role }] }
 }
 
 export async function fetchVersion(){
@@ -64,7 +64,7 @@ export async function discoverTools(payload) {
     body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error(await errorMessage(res));
-  return (await res.json()).tools; // [{ name, description, tags, method, path, input_schema }]
+  return res.json(); // { tools: [{ name, description, tags, method, path, input_schema }], version }
 }
 
 // Exécute un outil pour l'utilisateur connecté.
@@ -77,4 +77,18 @@ export async function callTool(name, args, model = null) {
   });
   if (!res.ok) throw new Error(await errorMessage(res));
   return res.json(); // { ok, status, content_type, content, truncated, duration_ms }
+}
+
+// Recherche (pertinence) et/ou filtres sur les outils visibles. `mode` dit comment les résultats ont été classés.
+export async function searchTools({ q = "", type = null, tags = [], source = null, version = null, limit = 50 } = {}) {
+  const params = new URLSearchParams();
+  if (q) params.set("q", q);
+  if (type) params.set("type", type);
+  tags.forEach((t) => params.append("tag", t));
+  if (source) params.set("source", source);
+  if (version) params.set("version", version);
+  params.set("limit", String(limit));
+  const res = await fetch(`${API_URL}/api/me/tools/search?${params}`, { credentials: "include" });
+  if (!res.ok) throw new Error(await errorMessage(res));
+  return res.json(); // { tools, mode: "hybrid" | "keyword" | "basic" | "filter" }
 }

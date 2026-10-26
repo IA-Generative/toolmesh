@@ -61,6 +61,7 @@ export default function ToolDetail() {
   const facts = [
     ["Catégorie", TYPE_LABELS[tool.type] ?? tool.type],
     ["Source", tool.source],
+    ...(tool.source_version ? [["Version", tool.source_version]] : []),
     ...(tool.type === "skill"
       ? []
       : [[
