@@ -26,6 +26,12 @@
           "name": "access",
           "description": "May call the datetime MCP server"
         }
+      ],
+      "mcp-search": [
+        {
+          "name": "access",
+          "description": "May call the search MCP server"
+        }
       ]
     }
   },
@@ -137,6 +143,15 @@
       "secret": "mcp-datetime-secret",
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "mcp-search",
+      "name": "Search MCP server (exchange target)",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "mcp-search-secret",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
     }
   ],
   "users": [
@@ -162,6 +177,9 @@
           "access"
         ],
         "mcp-datetime": [
+          "access"
+        ],
+        "mcp-search": [
           "access"
         ]
       }
@@ -190,6 +208,9 @@
         ],
         "mcp-datetime": [
           "access"
+        ],
+        "mcp-search": [
+          "access"
         ]
       }
     },
@@ -205,6 +226,9 @@
           "access"
         ],
         "mcp-datetime": [
+          "access"
+        ],
+        "mcp-search": [
           "access"
         ]
       }
@@ -243,6 +267,14 @@
       }
     ],
     "mcp-datetime": [
+      {
+        "client": "toolmesh",
+        "roles": [
+          "access"
+        ]
+      }
+    ],
+    "mcp-search": [
       {
         "client": "toolmesh",
         "roles": [

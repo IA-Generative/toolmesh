@@ -3,7 +3,7 @@
 ## Local authentication (Keycloak)
 
 ```bash
-docker compose up -d --build   # Keycloak (realm `toolmesh` auto-imported) + backend with hot reload on :8010
+docker compose up -d --build   # Keycloak (realm `toolmesh` auto-imported), PostgreSQL, SearXNG, the MCP servers, backend (hot reload) on :8010 and frontend on :3000
 ```
 
 Backend: http://localhost:8010/docs (override with `TOOLMESH_BACKEND_PORT`). Keycloak admin console: http://localhost:8080 (`admin` / `admin`).
@@ -91,6 +91,22 @@ the container (`docker compose up -d --force-recreate keycloak`) for the change 
 `now`, `convert_timezone`, `add_to_date`, `date_diff`, `weekday`, `period_bounds`, `business_days`,
 `add_business_days`. It is started by `docker compose up -d --build` and serves streamable HTTP on
 http://localhost:8030/mcp. Its `/mcp` endpoint requires a Keycloak token with audience `mcp-datetime` (401 otherwise). Its only purpose here is to exercise token exchange: `GET /api/mock/mcp-datetime?date=2026-10-13&kind=month` on toolmesh exchanges the caller's token and calls `period_bounds` on it. Tests: `cd mcp-datetime && uv run pytest`.
+
+## MCP search (separate service)
+
+`mcp-search/` is a standalone MCP server (own project, Dockerfile and tests) that gives an agent the web:
+
+- `web_search(query, max_results, language, time_range, category)`: results (title, url, snippet, engine) from a
+  [SearXNG](https://docs.searxng.org) meta-search engine, started by the compose stack (`searxng/settings.yml` enables its
+  JSON output; try it on http://localhost:8888).
+- `fetch_page(url, max_chars)`: title and readable text of a page. Loopback, private and link-local addresses (and
+  redirects towards them) are refused, unless `MCP_SEARCH_ALLOW_PRIVATE_HOSTS` is set.
+
+It serves streamable HTTP on http://localhost:8040/mcp and, like `mcp-datetime`, requires a token with audience
+`mcp-search` (client `mcp-search` in the realm, `access` role, exchange allowed for the `toolmesh` client). To use it from
+the app, add a source of type MCP with the URL `http://mcp-search:8000/mcp`, authentication "Token exchange" and the
+audience `mcp-search`, then "Découvrir maintenant" (the demo data already declares it as `search-mcp`).
+Tests: `cd mcp-search && uv run pytest`. After changing the realm, recreate Keycloak (see above).
 
 ## Kubernetes
 

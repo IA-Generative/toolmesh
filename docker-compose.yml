@@ -103,6 +103,30 @@ services:
     ports:
       - "3000:3000"
 
+  # Meta-search engine behind the search MCP server (JSON output enabled in searxng/settings.yml).
+  searxng:
+    image: searxng/searxng:latest
+    environment:
+      SEARXNG_BASE_URL: http://localhost:8888/
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      - "8888:8080"
+
+  # Web search / page reading MCP server (streamable HTTP on /mcp), reachable with a token exchanged for `mcp-search`.
+  mcp-search:
+    build: ./mcp-search
+    environment:
+      MCP_SEARCH_SEARXNG_URL: http://searxng:8080
+      MCP_SEARCH_OIDC_ISSUER: http://localhost:8080/realms/toolmesh
+      MCP_SEARCH_OIDC_JWKS_URL: http://keycloak:8080/realms/toolmesh/protocol/openid-connect/certs
+      MCP_SEARCH_OIDC_AUDIENCE: mcp-search
+    depends_on:
+      - keycloak
+      - searxng
+    ports:
+      - "8040:8000"
+
 volumes:
   frontend_node_modules:
   postgres_data:

@@ -1,0 +1,14 @@
+# SearXNG for the dev stack: the defaults, plus the JSON output that `mcp-search` reads.
+use_default_settings: true
+
+server:
+  # Dev only: sessions and CSRF tokens are not used, but SearXNG refuses to start with the default key.
+  secret_key: "dev-only-not-a-secret"
+  # Only reachable from the compose network: the bot-detection limiter would block the MCP server.
+  limiter: false
+  public_instance: false
+
+search:
+  formats:
+    - html
+    - json
