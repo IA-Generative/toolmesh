@@ -21,6 +21,8 @@ def tool_out(source: Source, tool: Tool) -> ToolOut:
         method=tool.method,
         path=tool.path,
         input_schema=tool.input_schema,
+        auth_mode=source.auth_mode,
+        audience=source.audience,
         required_role=source.required_role,
     )
 

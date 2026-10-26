@@ -23,7 +23,7 @@ export async function logout() {
 export async function fetchMyTools() {
   const res = await fetch(`${API_URL}/api/me/tools`, { credentials: "include" });
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
-  return res.json(); // { user, roles, tools: [{ name, description, source, type, tags, source_url, method, path, input_schema, required_role }] }
+  return res.json(); // { user, roles, tools: [{ name, description, source, type, tags, source_url, method, path, input_schema, auth_mode, audience, required_role }] }
 }
 
 export async function fetchVersion(){
