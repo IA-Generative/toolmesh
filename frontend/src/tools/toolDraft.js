@@ -5,6 +5,18 @@ export const NAME_HINT = "Lettres, chiffres, _ . : - uniquement (100 caractères
 let nextId = 1;
 export const emptyTool = () => ({ id: nextId++, name: "", description: "", tags: "", method: "GET", path: "", schema: "" });
 
+// Brouillon d'un outil renvoyé par la découverte (affiché en ligne compacte).
+export const draftFromDiscovered = (t) => ({
+  id: nextId++,
+  discovered: true,
+  name: t.name,
+  description: t.description ?? "",
+  tags: (t.tags ?? []).join(", "),
+  method: t.method ?? "GET",
+  path: t.path ?? "",
+  schema: t.input_schema ? JSON.stringify(t.input_schema) : "",
+});
+
 export function parseSchema(text) {
   if (!text.trim()) return { value: null };
   try {

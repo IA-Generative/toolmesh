@@ -5,10 +5,10 @@ import Button from "@codegouvfr/react-dsfr/Button";
 import Input from "@codegouvfr/react-dsfr/Input";
 import RadioButtons from "@codegouvfr/react-dsfr/RadioButtons";
 import Stepper from "@codegouvfr/react-dsfr/Stepper";
-import { createSource } from "../auth/api";
+import { createSource, discoverTools } from "../auth/api";
 import { MOCK_OPERATIONS, isExposed, splitLines } from "../tools/endpoints";
 import ToolsEditor from "../tools/ToolsEditor";
-import { NAME_HINT, NAME_RE, emptyTool, parseSchema, toolErrors } from "../tools/toolDraft";
+import { NAME_HINT, NAME_RE, draftFromDiscovered, parseSchema, toolErrors } from "../tools/toolDraft";
 
 const TYPES = [
   { value: "mcp", label: "Serveur MCP", hint: "Serveur exposant des outils via le protocole MCP" },
@@ -40,7 +40,7 @@ const INITIAL = {
   accessScope: "all",
   accessRole: "",
   schema: "",
-  tools: [emptyTool()],
+  tools: [],
 };
 
 const splitList = (s) => s.split(",").map((v) => v.trim()).filter(Boolean);
@@ -274,6 +274,7 @@ export default function AddTool() {
           tools={form.tools}
           isApi={form.type === "api"}
           errors={showErrors ? errors.tools : undefined}
+          onDiscover={async () => (await discoverTools(buildPayload({ ...form, tools: [] }))).map(draftFromDiscovered)}
           onChange={(tools) => setForm((f) => ({ ...f, tools }))}
         />
       )}
@@ -383,7 +384,7 @@ function Summary({ payload: p }) {
           ["Endpoints exclus", p.endpoint_exclude.join(", ") || "aucun"],
         ]
       : []),
-    ...(isSkill ? [] : [["Outils", p.tools.map((t) => (t.method ? `${t.method} ${t.path} → ${t.name}` : t.name)).join(", ")]]),
+    ...(isSkill ? [] : [["Outils", p.tools.length === 0 ? "Découverts à l'ajout" : p.tools.map((t) => (t.method ? `${t.method} ${t.path} → ${t.name}` : t.name)).join(", ")]]),
     ["Accès", p.required_role ? `Rôle requis : ${p.required_role}` : SCOPE_LABELS.all],
   ];
   return (

@@ -54,3 +54,15 @@ export async function createSource(payload) {
   if (!res.ok) throw new Error(await errorMessage(res));
   return res.json(); // { id, name, type, ..., tools: [{ name, ... }] }
 }
+
+// Aperçu des outils d'un serveur MCP / d'une API, sans rien enregistrer.
+export async function discoverTools(payload) {
+  const res = await fetch(`${API_URL}/api/sources/discover`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(await errorMessage(res));
+  return (await res.json()).tools; // [{ name, description, tags, method, path, input_schema }]
+}
