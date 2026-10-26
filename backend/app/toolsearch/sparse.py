@@ -15,18 +15,29 @@ STOP_WORDS = frozenset(
 )
 
 
+def stem(token: str) -> str:
+    """Strip a plural `s` (English and French alike) so that "tickets" matches "ticket"."""
+    return token[:-1] if len(token) > 3 and token.endswith("s") and not token.endswith("ss") else token
+
+
 def tokenize(text: str) -> list[str]:
-    """Lower-cased words without accents or stop words, e.g. "Météo d'une ville" -> ["meteo", "ville"]."""
-    folded = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode().lower()
-    return [t for t in re.findall(r"[a-z0-9]+", folded) if len(t) > 1 and t not in STOP_WORDS]
+    """Words without accents, case, plural `s` or stop words, identifiers split: `findPetsByStatus` -> find pet by
+    statu... -> ["find", "pet", "statu"]; "Météo d'une ville" -> ["meteo", "ville"]."""
+    spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)  # camelCase, before the case is lost
+    folded = unicodedata.normalize("NFKD", spaced).encode("ascii", "ignore").decode().lower()
+    return [stem(t) for t in re.findall(r"[a-z0-9]+", folded) if len(t) > 1 and t not in STOP_WORDS]
 
 
 def _index(token: str) -> int:
     return zlib.crc32(token.encode())
 
 
-def encode_document(text: str) -> tuple[list[int], list[float]]:
-    counts = Counter(tokenize(text))
+def encode_document(parts: str | list[tuple[str, float]]) -> tuple[list[int], list[float]]:
+    """Keyword vector of a text, or of (text, weight) parts: a word found in a part counts `weight` times."""
+    counts: Counter[str] = Counter()
+    for text, weight in [(parts, 1.0)] if isinstance(parts, str) else parts:
+        for token in tokenize(text):
+            counts[token] += weight
     items = sorted((_index(t), n * (K1 + 1) / (n + K1)) for t, n in counts.items())
     return [i for i, _ in items], [v for _, v in items]
 

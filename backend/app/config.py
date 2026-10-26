@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,6 +45,17 @@ class Settings(BaseSettings):
     embeddings_model: str | None = None
     # Size of the vectors; probed with a first call when unset.
     embeddings_dimensions: int | None = None
+    # Prepended to the text sent for embedding, for models trained with instructions (e5: `query: ` / `passage: `).
+    embeddings_query_prefix: str = ""
+    embeddings_document_prefix: str = ""
+    # Fusion of the two rankings (see `eval/run.py` to tune them for your model): weight of each, the `k` of the
+    # reciprocal rank fusion (small: the top ranks matter most), the bonus of a tool whose whole name is in the query,
+    # and the cosine score under which a dense match is ignored (None: keep the nearest tools, however far).
+    search_dense_weight: float = 1.0
+    search_keyword_weight: float = 1.0
+    search_rrf_k: int = 10
+    search_name_bonus: float = 0.15
+    search_min_dense_score: float | None = None
 
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
@@ -56,6 +68,12 @@ class Settings(BaseSettings):
     session_cookie_secure: bool = False
     session_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     session_ttl_seconds: int = 28800
+
+    @field_validator("embeddings_dimensions", "search_min_dense_score", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, value: object) -> object:
+        """An empty environment variable (e.g. `${VAR:-}` in a compose file) means unset."""
+        return None if value == "" else value
 
     @property
     def public_url(self) -> str:

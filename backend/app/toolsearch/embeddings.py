@@ -1,3 +1,5 @@
+from typing import Literal
+
 import httpx
 
 from app.config import Settings
@@ -9,10 +11,8 @@ class EmbeddingError(Exception):
     pass
 
 
-async def embed(settings: Settings, texts: list[str], client: httpx.AsyncClient | None = None) -> list[list[float]]:
-    """Dense vectors of `texts` from an OpenAI-compatible `/embeddings` API, in the order of `texts`."""
-    if not (settings.embeddings_url and settings.embeddings_model):
-        raise EmbeddingError("Embeddings are not configured")
+async def _request(settings: Settings, texts: list[str], client: httpx.AsyncClient | None = None) -> list[list[float]]:
+    """POST the texts to the OpenAI-compatible `/embeddings` API; vectors in the order of `texts`."""
     headers = {"Authorization": f"Bearer {settings.embeddings_api_key}"} if settings.embeddings_api_key else {}
     owns_client = client is None
     client = client or httpx.AsyncClient(timeout=30)
@@ -38,3 +38,18 @@ async def embed(settings: Settings, texts: list[str], client: httpx.AsyncClient 
         if owns_client:
             await client.aclose()
     return vectors
+
+
+async def embed(
+    settings: Settings,
+    texts: list[str],
+    kind: Literal["query", "document"] = "document",
+    client: httpx.AsyncClient | None = None,
+) -> list[list[float]]:
+    """Dense vectors of `texts`, in order. Models trained with instructions want a prefix that differs between what is
+    searched (`query`) and what is searched in (`document`): `embeddings_query_prefix` and
+    `embeddings_document_prefix`."""
+    if not (settings.embeddings_url and settings.embeddings_model):
+        raise EmbeddingError("Embeddings are not configured")
+    prefix = settings.embeddings_query_prefix if kind == "query" else settings.embeddings_document_prefix
+    return await _request(settings, [prefix + t for t in texts], client)
