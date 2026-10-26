@@ -5,7 +5,10 @@ import Button from "@codegouvfr/react-dsfr/Button";
 import Input from "@codegouvfr/react-dsfr/Input";
 import RadioButtons from "@codegouvfr/react-dsfr/RadioButtons";
 import Stepper from "@codegouvfr/react-dsfr/Stepper";
+import { createSource } from "../auth/api";
 import { MOCK_OPERATIONS, isExposed, splitLines } from "../tools/endpoints";
+import ToolsEditor from "../tools/ToolsEditor";
+import { NAME_HINT, NAME_RE, emptyTool, parseSchema, toolErrors } from "../tools/toolDraft";
 
 const TYPES = [
   { value: "mcp", label: "Serveur MCP", hint: "Serveur exposant des outils via le protocole MCP" },
@@ -15,14 +18,12 @@ const TYPES = [
 
 const AUTH_MODES = [
   { value: "token_exchange", label: "Token exchange", hint: "Le jeton de l'utilisateur est échangé contre un jeton pour ce service" },
-  { value: "static_token", label: "Token statique", hint: "Un jeton unique partagé, stocké côté ToolMesh" },
-  { value: "none", label: "Sans identifiants", hint: "Le service est appelé sans authentification" },
+  { value: "none", label: "Public (sans identifiants)", hint: "Le service est appelé sans authentification" },
 ];
 
 const ACCESS_SCOPES = [
   { value: "all", label: "Tous les utilisateurs connectés" },
-  { value: "groups", label: "Des groupes Keycloak" },
-  { value: "users", label: "Des utilisateurs précis" },
+  { value: "role", label: "Les utilisateurs ayant un rôle précis" },
 ];
 
 const INITIAL = {
@@ -36,9 +37,10 @@ const INITIAL = {
   excludePatterns: "",
   authMode: "token_exchange",
   audience: "",
-  staticToken: "",
   accessScope: "all",
-  accessList: "",
+  accessRole: "",
+  schema: "",
+  tools: [emptyTool()],
 };
 
 const splitList = (s) => s.split(",").map((v) => v.trim()).filter(Boolean);
@@ -47,8 +49,8 @@ const splitList = (s) => s.split(",").map((v) => v.trim()).filter(Boolean);
 const hasNetworkAccess = (type) => type !== "skill";
 
 function stepsFor(type) {
-  if (type === "api") return ["Définition", "Authentification", "Endpoints", "Accès", "Récapitulatif"];
-  if (type === "mcp") return ["Définition", "Authentification", "Accès", "Récapitulatif"];
+  if (type === "api") return ["Définition", "Authentification", "Endpoints", "Outils", "Accès", "Récapitulatif"];
+  if (type === "mcp") return ["Définition", "Authentification", "Outils", "Accès", "Récapitulatif"];
   return ["Définition", "Accès", "Récapitulatif"];
 }
 
@@ -56,42 +58,56 @@ function errorsFor(step, f) {
   const e = {};
   if (step === "Définition") {
     if (!f.name.trim()) e.name = "Le nom est obligatoire.";
+    else if (!NAME_RE.test(f.name.trim())) e.name = NAME_HINT;
     if (f.type === "skill" && !f.description.trim()) e.description = "La description est obligatoire pour un skill.";
-    if (f.type === "mcp" && !f.url.trim()) e.url = "L'URL est obligatoire.";
-    if (f.type === "api" && !f.url.trim()) e.url = "L'URL est obligatoire.";
+    if (f.type !== "skill" && !f.url.trim()) e.url = "L'URL est obligatoire.";
     if (f.type === "api" && !f.openapiUrl.trim()) e.openapiUrl = "L'URL du Swagger est obligatoire.";
+    if (f.type === "skill" && parseSchema(f.schema).error) e.schema = parseSchema(f.schema).error;
   }
-  if (step === "Authentification") {
-    if (f.authMode === "token_exchange" && !f.audience.trim()) e.audience = "L'audience est obligatoire.";
-    if (f.authMode === "static_token" && !f.staticToken.trim()) e.staticToken = "Le jeton est obligatoire.";
+  if (step === "Authentification" && f.authMode === "token_exchange" && !f.audience.trim()) {
+    e.audience = "L'audience est obligatoire.";
   }
-  if (step === "Accès" && f.accessScope !== "all" && splitList(f.accessList).length === 0) {
-    e.accessList = "Renseignez au moins une valeur.";
+  if (step === "Outils") {
+    const perTool = toolErrors(f.tools, f.type === "api");
+    if (perTool.some((t) => Object.keys(t).length)) e.tools = perTool;
+  }
+  if (step === "Accès" && f.accessScope === "role" && !f.accessRole.trim()) {
+    e.accessRole = "Renseignez le rôle requis.";
   }
   return e;
 }
 
+// Corps de POST /api/sources.
 function buildPayload(f) {
-  const network = hasNetworkAccess(f.type);
-  return {
+  const isSkill = f.type === "skill";
+  const isApi = f.type === "api";
+  const base = {
     name: f.name.trim(),
-    description: f.description.trim() || null,
     type: f.type,
-    tags: splitList(f.tags),
-    url: network ? f.url.trim() : null,
-    openapi_url: f.type === "api" ? f.openapiUrl.trim() : null,
-    endpoints:
-      f.type === "api"
-        ? { include: splitLines(f.includePatterns), exclude: splitLines(f.excludePatterns) }
-        : null,
-    auth: network
-      ? {
-          mode: f.authMode,
-          audience: f.authMode === "token_exchange" ? f.audience.trim() : null,
-          token: f.authMode === "static_token" ? f.staticToken : null,
-        }
-      : null,
-    access: { scope: f.accessScope, values: f.accessScope === "all" ? [] : splitList(f.accessList) },
+    description: f.description.trim() || null,
+    required_role: f.accessScope === "role" ? f.accessRole.trim() : null,
+  };
+  if (isSkill) {
+    // Un skill est un outil unique, du même nom que la source.
+    const tool = { name: base.name, description: base.description ?? "", tags: splitList(f.tags), input_schema: parseSchema(f.schema).value };
+    return { ...base, tags: tool.tags, tools: [tool] };
+  }
+  return {
+    ...base,
+    url: f.url.trim(),
+    openapi_url: isApi ? f.openapiUrl.trim() : null,
+    auth_mode: f.authMode,
+    audience: f.authMode === "token_exchange" ? f.audience.trim() : null,
+    endpoint_include: isApi ? splitLines(f.includePatterns) : [],
+    endpoint_exclude: isApi ? splitLines(f.excludePatterns) : [],
+    tools: f.tools.map((t) => ({
+      name: t.name.trim(),
+      description: t.description.trim(),
+      tags: splitList(t.tags),
+      method: isApi ? t.method : null,
+      path: isApi ? t.path.trim() : null,
+      input_schema: parseSchema(t.schema).value,
+    })),
   };
 }
 
@@ -99,7 +115,9 @@ export default function AddTool() {
   const [form, setForm] = useState(INITIAL);
   const [index, setIndex] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
-  const [submitted, setSubmitted] = useState(null);
+  const [created, setCreated] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   const steps = stepsFor(form.type);
   const step = steps[index];
@@ -116,19 +134,34 @@ export default function AddTool() {
     setShowErrors(false);
     setIndex((i) => i - 1);
   };
-  const submit = () => setSubmitted(buildPayload(form));
+  const submit = async () => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      setCreated(await createSource(buildPayload(form)));
+    } catch (e) {
+      setSubmitError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  if (submitted) {
+  if (created) {
+    const first = created.tools[0];
     return (
       <div>
         <h1>Ajouter un outil</h1>
         <Alert
-          severity="info"
-          title="Formulaire complet"
-          description="L'enregistrement n'est pas encore branché sur le backend : voici la définition qui sera envoyée."
+          severity="success"
+          title="Outil ajouté"
+          description={`« ${created.name} » est enregistré avec ${created.tools.length} outil${created.tools.length > 1 ? "s" : ""}.`}
         />
-        <pre className="fr-mt-3w"><code>{JSON.stringify({ ...submitted, auth: submitted.auth && { ...submitted.auth, token: submitted.auth.token && "••••••" } }, null, 2)}</code></pre>
-        <Link to="/accueil" className="fr-btn fr-mt-2w">Retour à mes outils</Link>
+        <ul className="fr-btns-group fr-btns-group--inline-md fr-mt-3w">
+          {first && (
+            <li><Link to={`/outils/${encodeURIComponent(first.name)}`} className="fr-btn">Voir {first.name}</Link></li>
+          )}
+          <li><Link to="/accueil" className="fr-btn fr-btn--secondary">Retour à mes outils</Link></li>
+        </ul>
       </div>
     );
   }
@@ -159,7 +192,12 @@ export default function AddTool() {
               },
             }))}
           />
-          <Input label="Nom" nativeInputProps={{ value: form.name, onChange: set("name"), required: true }} {...fieldState("name")} />
+          <Input
+            label="Nom"
+            hintText={NAME_HINT}
+            nativeInputProps={{ value: form.name, onChange: set("name"), required: true }}
+            {...fieldState("name")}
+          />
           <Input
             label="Description"
             hintText={form.type === "skill" ? "Obligatoire pour un skill" : "Facultative"}
@@ -167,11 +205,22 @@ export default function AddTool() {
             nativeTextAreaProps={{ value: form.description, onChange: set("description"), rows: 3, required: form.type === "skill" }}
             {...fieldState("description")}
           />
-          <Input
-            label="Tags"
-            hintText="Séparés par des virgules, par exemple : recherche, web"
-            nativeInputProps={{ value: form.tags, onChange: set("tags") }}
-          />
+          {form.type === "skill" && (
+            <>
+              <Input
+                label="Tags"
+                hintText="Séparés par des virgules, par exemple : recherche, web"
+                nativeInputProps={{ value: form.tags, onChange: set("tags") }}
+              />
+              <Input
+                label="Schéma d'entrée (JSON Schema)"
+                hintText="Facultatif ; permet de tester le skill avec un formulaire"
+                textArea
+                nativeTextAreaProps={{ value: form.schema, onChange: set("schema"), rows: 6, spellCheck: false }}
+                {...fieldState("schema")}
+              />
+            </>
+          )}
           {hasNetworkAccess(form.type) && (
             <Input
               label={form.type === "mcp" ? "URL du serveur MCP" : "URL de l'API"}
@@ -213,18 +262,20 @@ export default function AddTool() {
               {...fieldState("audience")}
             />
           )}
-          {form.authMode === "static_token" && (
-            <Input
-              label="Jeton"
-              nativeInputProps={{ value: form.staticToken, onChange: set("staticToken"), type: "password", autoComplete: "off", required: true }}
-              {...fieldState("staticToken")}
-            />
-          )}
         </>
       )}
 
       {step === "Endpoints" && (
         <EndpointRules form={form} set={set} />
+      )}
+
+      {step === "Outils" && (
+        <ToolsEditor
+          tools={form.tools}
+          isApi={form.type === "api"}
+          errors={showErrors ? errors.tools : undefined}
+          onChange={(tools) => setForm((f) => ({ ...f, tools }))}
+        />
       )}
 
       {step === "Accès" && (
@@ -241,16 +292,12 @@ export default function AddTool() {
               },
             }))}
           />
-          {form.accessScope !== "all" && (
+          {form.accessScope === "role" && (
             <Input
-              label={form.accessScope === "groups" ? "Groupes Keycloak" : "Utilisateurs"}
-              hintText={
-                form.accessScope === "groups"
-                  ? "Noms des groupes, séparés par des virgules"
-                  : "Identifiants des utilisateurs, séparés par des virgules"
-              }
-              nativeInputProps={{ value: form.accessList, onChange: set("accessList"), required: true }}
-              {...fieldState("accessList")}
+              label="Rôle requis"
+              hintText="Rôle du realm Keycloak, par exemple admin"
+              nativeInputProps={{ value: form.accessRole, onChange: set("accessRole"), required: true }}
+              {...fieldState("accessRole")}
             />
           )}
         </>
@@ -258,14 +305,18 @@ export default function AddTool() {
 
       {step === "Récapitulatif" && <Summary payload={buildPayload(form)} />}
 
+      {submitError && (
+        <Alert className="fr-mt-3w" severity="error" title="L'ajout a échoué" description={submitError} />
+      )}
+
       <ul className="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
         {index > 0 && (
-          <li><Button priority="secondary" onClick={back}>Précédent</Button></li>
+          <li><Button priority="secondary" onClick={back} disabled={submitting}>Précédent</Button></li>
         )}
         <li>
           {index < steps.length - 1
             ? <Button onClick={next}>Suivant</Button>
-            : <Button onClick={submit}>Ajouter l'outil</Button>}
+            : <Button onClick={submit} disabled={submitting}>{submitting ? "Ajout en cours…" : "Ajouter l'outil"}</Button>}
         </li>
       </ul>
     </div>
@@ -314,25 +365,26 @@ const AUTH_LABELS = Object.fromEntries(AUTH_MODES.map((m) => [m.value, m.label])
 const SCOPE_LABELS = Object.fromEntries(ACCESS_SCOPES.map((s) => [s.value, s.label]));
 
 function Summary({ payload: p }) {
+  const isSkill = p.type === "skill";
   const rows = [
     ["Catégorie", TYPES.find((t) => t.value === p.type).label],
     ["Nom", p.name],
     ["Description", p.description ?? "—"],
-    ["Tags", p.tags.length ? p.tags.join(", ") : "—"],
-    ...(p.auth
-      ? [
+    ...(isSkill
+      ? [["Tags", p.tags.length ? p.tags.join(", ") : "—"]]
+      : [
           ["URL", p.url],
-          ["Authentification", AUTH_LABELS[p.auth.mode] + (p.auth.audience ? ` (audience ${p.auth.audience})` : "")],
-        ]
-      : []),
-    ...(p.endpoints
+          ["Authentification", AUTH_LABELS[p.auth_mode] + (p.audience ? ` (audience ${p.audience})` : "")],
+        ]),
+    ...(p.openapi_url
       ? [
           ["Swagger", p.openapi_url],
-          ["Endpoints inclus", p.endpoints.include.join(", ") || "tous"],
-          ["Endpoints exclus", p.endpoints.exclude.join(", ") || "aucun"],
+          ["Endpoints inclus", p.endpoint_include.join(", ") || "tous"],
+          ["Endpoints exclus", p.endpoint_exclude.join(", ") || "aucun"],
         ]
       : []),
-    ["Accès", SCOPE_LABELS[p.access.scope] + (p.access.values.length ? ` : ${p.access.values.join(", ")}` : "")],
+    ...(isSkill ? [] : [["Outils", p.tools.map((t) => (t.method ? `${t.method} ${t.path} → ${t.name}` : t.name)).join(", ")]]),
+    ["Accès", p.required_role ? `Rôle requis : ${p.required_role}` : SCOPE_LABELS.all],
   ];
   return (
     <dl>
