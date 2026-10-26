@@ -2,31 +2,57 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import { useAuth } from "../auth/AuthContext";
-import { fetchMyTools } from "../auth/api";
+import { fetchMyTools, searchTools } from "../auth/api";
 
 import { TYPE_LABELS } from "../tools/types";
 import ToolCard, { FilterTag } from "../tools/ToolCard";
 
-const normalize = (s) => s.toLowerCase();
+
+const MODE_HINTS = {
+  hybrid: "Résultats classés par pertinence (mots-clés et sens).",
+  keyword: "Résultats classés par pertinence (mots-clés).",
+  basic: "Résultats par mots-clés.",
+};
 
 export default function Home() {
   const { user } = useAuth();
   const [params, setParams] = useSearchParams();
   const [tools, setTools] = useState(null);
   const [error, setError] = useState(null);
-  const q = normalize((params.get("q") ?? "").trim());
+  const [found, setFound] = useState(null); // { key, tools, mode } : réponse de la recherche pour la clé `key`
+  const rawQuery = (params.get("q") ?? "").trim();
   const activeTags = params.getAll("tag");
   const activeType = params.get("type");
+  const activeVersion = params.get("version");
+  const searchKey = JSON.stringify([rawQuery, activeType, activeTags, activeVersion]);
 
   useEffect(() => {
     fetchMyTools().then((d) => setTools(d.tools)).catch((e) => setError(e.message));
   }, []);
+
+  // Avec une requête, le backend classe les outils par pertinence ; sans requête, les filtres suffisent côté client.
+  useEffect(() => {
+    if (!rawQuery) return;
+    let current = true;
+    searchTools({ q: rawQuery, type: activeType, tags: activeTags, version: activeVersion })
+      .then((r) => current && setFound({ key: searchKey, tools: r.tools, mode: r.mode }))
+      .catch((e) => current && setError(e.message));
+    return () => {
+      current = false;
+    };
+    // `searchKey` résume toutes les entrées de la recherche.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchKey]);
 
   const allTags = useMemo(
     () => [...new Set((tools ?? []).flatMap((t) => t.tags ?? []))].sort((a, b) => a.localeCompare(b, "fr")),
     [tools],
   );
   const allTypes = useMemo(() => [...new Set((tools ?? []).map((t) => t.type))], [tools]);
+  const allVersions = useMemo(
+    () => [...new Set((tools ?? []).map((t) => t.source_version).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })),
+    [tools],
+  );
 
   const update = (mutate) => {
     const next = new URLSearchParams(params);
@@ -41,18 +67,21 @@ export default function Home() {
     });
   const toggleType = (type) =>
     update((p) => (activeType === type ? p.delete("type") : p.set("type", type)));
-  const reset = () => update((p) => { p.delete("tag"); p.delete("type"); });
+  const toggleVersion = (version) =>
+    update((p) => (activeVersion === version ? p.delete("version") : p.set("version", version)));
+  const reset = () => update((p) => { p.delete("tag"); p.delete("type"); p.delete("version"); });
 
-  const visible = tools?.filter(
-    (t) =>
-      (!q ||
-        normalize(t.name).includes(q) ||
-        normalize(t.description).includes(q) ||
-        (t.tags ?? []).some((tag) => normalize(tag).includes(q))) &&
-      (!activeType || t.type === activeType) &&
-      activeTags.every((tag) => (t.tags ?? []).includes(tag)),
-  );
-  const filtered = Boolean(q || activeType || activeTags.length);
+  const searching = Boolean(rawQuery);
+  const results = found?.key === searchKey ? found : null;
+  const visible = searching
+    ? results?.tools
+    : tools?.filter(
+        (t) =>
+          (!activeType || t.type === activeType) &&
+          (!activeVersion || t.source_version === activeVersion) &&
+          activeTags.every((tag) => (t.tags ?? []).includes(tag)),
+      );
+  const filtered = Boolean(rawQuery || activeType || activeVersion || activeTags.length);
 
   return (
     <div>
@@ -81,6 +110,18 @@ export default function Home() {
                 </li>
               ))}
             </ul>
+            {allVersions.length > 0 && (
+              <>
+                <p className="fr-text--sm fr-text--bold fr-mb-1w fr-mt-2w" id="filtre-version">Version</p>
+                <ul className="fr-tags-group" aria-labelledby="filtre-version">
+                  {allVersions.map((v) => (
+                    <li key={v}>
+                      <FilterTag label={v} pressed={activeVersion === v} onClick={() => toggleVersion(v)} />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
             {allTags.length > 0 && (
               <>
                 <p className="fr-text--sm fr-text--bold fr-mb-1w fr-mt-2w" id="filtre-tags">Tags</p>
@@ -95,7 +136,10 @@ export default function Home() {
             )}
             <div className="fr-mt-2w" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
               <p className="fr-text--sm fr-mb-0" role="status">
-                {visible.length} outil{visible.length > 1 ? "s" : ""} sur {tools.length}
+                {visible
+                  ? `${visible.length} outil${visible.length > 1 ? "s" : ""} sur ${tools.length}`
+                  : "Recherche en cours…"}
+                {searching && results && MODE_HINTS[results.mode] ? ` ${MODE_HINTS[results.mode]}` : ""}
               </p>
               {filtered && (
                 <button type="button" className="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" onClick={reset}>
@@ -105,7 +149,7 @@ export default function Home() {
             </div>
           </section>
 
-          {visible.length === 0 && (
+          {visible?.length === 0 && (
             <Alert severity="info" title="Aucun résultat" description="Aucun outil ne correspond à votre recherche ou à vos filtres." />
           )}
         </>

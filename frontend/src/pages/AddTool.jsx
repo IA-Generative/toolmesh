@@ -31,6 +31,7 @@ const INITIAL = {
   name: "",
   description: "",
   tags: "",
+  version: "",
   url: "",
   openapiUrl: "",
   includePatterns: "",
@@ -85,6 +86,7 @@ function buildPayload(f) {
     name: f.name.trim(),
     type: f.type,
     description: f.description.trim() || null,
+    version: f.version.trim() || null,
     required_role: f.accessScope === "role" ? f.accessRole.trim() : null,
   };
   if (isSkill) {
@@ -223,6 +225,13 @@ export default function AddTool() {
           )}
           {hasNetworkAccess(form.type) && (
             <Input
+              label="Version"
+              hintText="Facultative : par défaut, la version lue à la découverte (info.version du Swagger, version du serveur MCP)"
+              nativeInputProps={{ value: form.version, onChange: set("version"), placeholder: "1.0.0" }}
+            />
+          )}
+          {hasNetworkAccess(form.type) && (
+            <Input
               label={form.type === "mcp" ? "URL du serveur MCP" : "URL de l'API"}
               nativeInputProps={{ value: form.url, onChange: set("url"), type: "url", placeholder: "https://", required: true }}
               {...fieldState("url")}
@@ -266,7 +275,7 @@ export default function AddTool() {
       )}
 
       {step === "Endpoints" && (
-        <EndpointRules form={form} set={set} onPreview={() => discoverTools(buildPayload({ ...form, tools: [] }))} />
+        <EndpointRules form={form} set={set} onPreview={async () => (await discoverTools(buildPayload({ ...form, tools: [] }))).tools} />
       )}
 
       {step === "Outils" && (
@@ -274,7 +283,10 @@ export default function AddTool() {
           tools={form.tools}
           isApi={form.type === "api"}
           errors={showErrors ? errors.tools : undefined}
-          onDiscover={async () => (await discoverTools(buildPayload({ ...form, tools: [] }))).map(draftFromDiscovered)}
+          onDiscover={async () => {
+            const { tools, version } = await discoverTools(buildPayload({ ...form, tools: [] }));
+            return { tools: tools.map(draftFromDiscovered), version };
+          }}
           onChange={(tools) => setForm((f) => ({ ...f, tools }))}
         />
       )}
@@ -389,6 +401,7 @@ function Summary({ payload: p }) {
     ["Catégorie", TYPES.find((t) => t.value === p.type).label],
     ["Nom", p.name],
     ["Description", p.description ?? "—"],
+    ...(isSkill ? [] : [["Version", p.version ?? "lue à la découverte"]]),
     ...(isSkill
       ? [["Tags", p.tags.length ? p.tags.join(", ") : "—"]]
       : [

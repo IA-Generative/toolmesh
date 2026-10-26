@@ -11,6 +11,7 @@ export default function SearchModal() {
   const [tools, setTools] = useState([]);
   const [type, setType] = useState(null);
   const [tags, setTags] = useState([]);
+  const [version, setVersion] = useState(null);
 
   useEffect(() => {
     fetchMyTools().then((d) => setTools(d.tools)).catch(() => {
@@ -24,6 +25,11 @@ export default function SearchModal() {
     [tools],
   );
 
+  const versions = useMemo(
+    () => [...new Set(tools.map((t) => t.source_version).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr", { numeric: true })),
+    [tools],
+  );
+
   const toggleTag = (tag) => setTags((cur) => (cur.includes(tag) ? cur.filter((t) => t !== tag) : [...cur, tag]));
 
   const onSearch = (text) => {
@@ -31,6 +37,7 @@ export default function SearchModal() {
     const params = new URLSearchParams();
     if (text) params.set("q", text);
     if (type) params.set("type", type);
+    if (version) params.set("version", version);
     tags.forEach((t) => params.append("tag", t));
     const qs = params.toString();
     navigate(qs ? `/accueil?${qs}` : "/accueil");
@@ -47,6 +54,19 @@ export default function SearchModal() {
             {types.map((t) => (
               <li key={t}>
                 <FilterTag label={TYPE_LABELS[t]} pressed={type === t} onClick={() => setType((cur) => (cur === t ? null : t))} />
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {versions.length > 0 && (
+        <>
+          <p className="fr-text--sm fr-text--bold fr-mt-2w fr-mb-1w" id="recherche-version">Version</p>
+          <ul className="fr-tags-group" aria-labelledby="recherche-version">
+            {versions.map((v) => (
+              <li key={v}>
+                <FilterTag label={v} pressed={version === v} onClick={() => setVersion((cur) => (cur === v ? null : v))} />
               </li>
             ))}
           </ul>
