@@ -31,6 +31,14 @@ services:
       timeout: 3s
       retries: 10
 
+  # Search index of the tools (keywords and, with an embeddings API, meaning).
+  qdrant:
+    image: qdrant/qdrant:v1.15.0
+    volumes:
+      - qdrant_data:/qdrant/storage
+    ports:
+      - "6333:6333"
+
   backend:
     build:
       context: ./backend
@@ -43,6 +51,11 @@ services:
       TOOLMESH_KEYCLOAK_CLIENT_SECRET: toolmesh-secret
       TOOLMESH_REDIS_URL: redis://redis:6379/0
       TOOLMESH_DATABASE_URL: postgresql+asyncpg://toolmesh:toolmesh@postgres:5432/toolmesh
+      TOOLMESH_QDRANT_URL: http://qdrant:6333
+      # Optional OpenAI-compatible embeddings API (e.g. the LLM hub): without it, only the keywords are indexed.
+      TOOLMESH_EMBEDDINGS_URL: ${TOOLMESH_EMBEDDINGS_URL:-}
+      TOOLMESH_EMBEDDINGS_API_KEY: ${TOOLMESH_EMBEDDINGS_API_KEY:-}
+      TOOLMESH_EMBEDDINGS_MODEL: ${TOOLMESH_EMBEDDINGS_MODEL:-}
       # Sources to discover live on the compose network (private addresses).
       TOOLMESH_DISCOVERY_ALLOW_PRIVATE_HOSTS: "true"
       TOOLMESH_FRONTEND_URL: ${TOOLMESH_FRONTEND_URL:-http://localhost:3000}
@@ -58,6 +71,8 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+      qdrant:
+        condition: service_started
 
   # Standalone MCP server (dates / periods), streamable HTTP on /mcp.
   mcp-datetime:
@@ -107,5 +122,6 @@ services:
       - "8040:8000"
 
 volumes:
+  qdrant_data:
   frontend_node_modules:
   postgres_data:

@@ -123,6 +123,11 @@ def _input_schema(operation: dict, path_item: dict, spec: dict) -> dict:
     return schema
 
 
+def spec_version(spec: dict) -> str | None:
+    version = (spec.get("info") or {}).get("version")
+    return str(version)[:100] if version not in (None, "") else None
+
+
 def tools_from_spec(spec: dict, include: list[str], exclude: list[str]) -> list[ToolIn]:
     """One tool per operation of the OpenAPI document that passes the include/exclude patterns."""
     tools: list[ToolIn] = []
@@ -186,7 +191,7 @@ async def fetch_spec(url: str, headers: dict[str, str], settings: Settings) -> d
 async def discover_api(source: SourceIn, subject_token: str | None, settings: Settings):
     headers = await _auth_headers(source, subject_token, settings)
     spec = await fetch_spec(source.openapi_url or "", headers, settings)
-    return tools_from_spec(spec, source.endpoint_include, source.endpoint_exclude)
+    return tools_from_spec(spec, source.endpoint_include, source.endpoint_exclude), spec_version(spec)
 
 
 # --- MCP -----------------------------------------------------------------------------------------------------------
@@ -196,10 +201,13 @@ async def discover_mcp(source: SourceIn, subject_token: str | None, settings: Se
     await check_url(source.url or "", settings)
     headers = await _auth_headers(source, subject_token, settings)
     tools: list[ToolIn] = []
+    version: str | None = None
     try:
         async with asyncio.timeout(settings.discovery_timeout_seconds):
             http_client = httpx2.AsyncClient(headers=headers, follow_redirects=False)
             async with http_client, Client(streamable_http_client(source.url, http_client=http_client)) as mcp:
+                server_version = getattr(getattr(mcp, "server_info", None), "version", None)
+                version = str(server_version)[:100] if server_version else None
                 cursor = None
                 while True:
                     page = await mcp.list_tools(cursor=cursor)
@@ -217,16 +225,16 @@ async def discover_mcp(source: SourceIn, subject_token: str | None, settings: Se
         raise
     except Exception as exc:
         raise DiscoveryError(f"Cannot list the tools of the MCP server: {exc}") from exc
-    return tools
+    return tools, version
 
 
 async def discover(source: SourceIn, subject_token: str | None, settings: Settings):
     if source.type == "mcp":
-        tools = await discover_mcp(source, subject_token, settings)
+        tools, version = await discover_mcp(source, subject_token, settings)
     elif source.type == "api":
-        tools = await discover_api(source, subject_token, settings)
+        tools, version = await discover_api(source, subject_token, settings)
     else:
         raise DiscoveryError("A skill has nothing to discover", status.HTTP_422_UNPROCESSABLE_CONTENT)
     if not tools:
         raise DiscoveryError("No tool found", status.HTTP_422_UNPROCESSABLE_CONTENT)
-    return tools
+    return tools, version

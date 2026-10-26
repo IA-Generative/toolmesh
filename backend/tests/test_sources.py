@@ -57,6 +57,7 @@ async def test_create_api_source_exposes_its_tools(client: AsyncClient) -> None:
         "name": "list_orders",
         "description": "List the orders",
         "source": "orders-api",
+        "source_version": None,
         "type": "api",
         "tags": ["commandes"],
         "source_url": "https://orders.example.org/openapi.json",
