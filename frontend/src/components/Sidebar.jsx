@@ -2,9 +2,12 @@ import { Link, NavLink } from "react-router";
 import UserMenu from "./UserMenu";
 import { searchModalJS } from "./searchModalJS";
 import useAppVersion from "./useAppVersion";
+import { clearHistory, timeAgo, useHistory } from "../tools/history";
+import { TYPE_ICONS } from "../tools/types";
 
 export default function Sidebar({ id, open, onNavigate }) {
   const version = useAppVersion();
+  const history = useHistory();
 
   return (
     <aside
@@ -38,8 +41,33 @@ export default function Sidebar({ id, open, onNavigate }) {
       </nav>
 
       <section className="app-sidebar__history" aria-labelledby="historique-titre">
-        <h2 id="historique-titre" className="fr-text--xs fr-text--bold fr-mb-1w">Historique</h2>
-        <p className="fr-text--sm fr-mb-0">Aucun historique pour le moment.</p>
+        <div className="app-sidebar__history-head">
+          <h2 id="historique-titre" className="fr-text--xs fr-text--bold fr-mb-0">Historique des tests</h2>
+          {history.length > 0 && (
+            <button type="button" className="app-sidebar__clear" onClick={clearHistory}>Effacer</button>
+          )}
+        </div>
+        {history.length === 0 ? (
+          <p className="fr-text--sm fr-mb-0">Aucun test pour le moment.</p>
+        ) : (
+          <ul className="app-sidebar__list">
+            {history.map((h) => (
+              <li key={h.id}>
+                <Link
+                  to={`/outils/${encodeURIComponent(h.tool)}?replay=${h.id}`}
+                  className="app-sidebar__link app-sidebar__entry"
+                  onClick={onNavigate}
+                >
+                  <span className={`${TYPE_ICONS[h.type] ?? "fr-icon-settings-5-line"} fr-icon--sm`} aria-hidden="true" />
+                  <span className="app-sidebar__entry-text">
+                    <span className="app-sidebar__entry-name">{h.tool}</span>
+                    <span className="app-sidebar__entry-meta">{timeAgo(h.at)} · {h.ms} ms</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <UserMenu />

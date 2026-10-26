@@ -1,0 +1,90 @@
+.tool-modal {
+  width: min(96vw, 92rem); height: min(92vh, 56rem); padding: 0; border: 0; border-radius: 1rem; overflow: hidden;
+  background: var(--background-alt-grey); color: var(--text-default-grey);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.35);
+}
+.tool-modal[open] { display: flex; flex-direction: column; }
+.tool-modal::backdrop { background: rgb(22 22 22 / 0.6); backdrop-filter: blur(3px); }
+
+.tool-modal__header {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex: none;
+  padding: 0.75rem 1.5rem; background: var(--background-default-grey); border-bottom: 1px solid var(--border-default-grey);
+}
+
+.tool-modal__grid { display: grid; gap: 1rem; padding: 1.25rem; flex: 1; min-height: 0; overflow-y: auto; }
+@media (min-width: 62em) {
+  .tool-modal__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; }
+}
+
+/* Panneaux entrée / sortie */
+.tool-modal__panel {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  border-radius: 0.75rem; background: var(--background-default-grey); border: 1px solid var(--border-default-grey);
+}
+.tool-modal__panel-head { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem 0.5rem 1rem; border-bottom: 1px solid var(--border-default-grey); }
+.tool-modal__panel-title { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 1rem; }
+.tool-modal__panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 1rem; }
+
+
+/* Centre : carte + bouton, reliés aux panneaux par des flèches */
+.tool-modal__hub { display: flex; flex-direction: column; justify-content: center; min-width: 0; overflow-y: auto; }
+.tool-modal__hub-card { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
+.tool-modal__run { justify-content: center; width: 100%; }
+.tool-modal__hint { margin: 0; text-align: center; color: var(--text-mention-grey); }
+
+/* État vide / chargement */
+.tool-modal__empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; min-height: 12rem; height: 100%; text-align: center; color: var(--text-mention-grey); }
+.tool-modal__empty > span:first-child::before { --icon-size: 3rem; }
+.tool-modal__empty p { margin: 0; max-width: 18rem; }
+.tool-modal__spinner {
+  width: 2rem; height: 2rem; border-radius: 50%;
+  border: 3px solid var(--border-default-grey); border-top-color: var(--border-active-blue-france);
+  animation: tool-spin 0.8s linear infinite;
+}
+@keyframes tool-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .tool-modal__spinner { animation-duration: 3s; } }
+
+/* Sortie */
+.tool-modal__status { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+.tool-modal__pill {
+  display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.125rem 0.625rem; border-radius: 1rem;
+  font-size: 0.8125rem; background: var(--background-contrast-grey); color: var(--text-default-grey);
+}
+.tool-modal__pill--ok { background: var(--background-contrast-success); color: var(--text-default-success); font-weight: 700; }
+.tool-modal__tabs { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.5rem; }
+.tool-modal__tabs fieldset { margin: 0; }
+.tool-modal__mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.875rem; }
+
+.json-view {
+  margin: 0; padding: 0.75rem 1rem; overflow: auto; border-radius: 0.5rem; max-height: 100%;
+  background: #161616; color: #e5e5e5; font-size: 0.8125rem; line-height: 1.5;
+}
+.json-view code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: none; color: inherit; }
+.json-key { color: #8ab4ff; }
+.json-string { color: #8be0a4; }
+.json-number { color: #f5b97a; }
+.json-word { color: #d9a0f5; }
+
+/* Barre de progression : trois colonnes égales, alignées sur les panneaux */
+.tool-progress {
+  position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; flex: none;
+  margin: 0; padding: 0.75rem 1.25rem 0; list-style: none;
+}
+.tool-progress__track {
+  position: absolute; top: 1.5rem; left: calc(1.25rem + (100% - 2.5rem - 2rem) / 6); right: calc(1.25rem + (100% - 2.5rem - 2rem) / 6);
+  height: 4px; border-radius: 2px; background: var(--border-default-grey); transform: translateY(-50%);
+}
+.tool-progress__fill { display: block; height: 100%; border-radius: 2px; background: var(--background-action-high-blue-france); transition: width 0.6s ease; }
+.tool-progress__fill[data-running="true"] { animation: tool-pulse 1s ease-in-out infinite alternate; }
+@keyframes tool-pulse { from { opacity: 1; } to { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .tool-progress__fill { transition: none; animation: none !important; } }
+.tool-progress__node { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.25rem; }
+.tool-progress__dot {
+  display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; width: 1.5rem; height: 1.5rem;
+  border-radius: 50%; font-size: 0.8125rem; font-weight: 700; line-height: 1;
+  background: var(--background-default-grey); border: 2px solid var(--border-default-grey); color: var(--text-mention-grey);
+}
+.tool-progress__node.is-current .tool-progress__dot { border-color: var(--background-action-high-blue-france); color: var(--text-action-high-blue-france); }
+.tool-progress__node.is-done .tool-progress__dot { background: var(--background-action-high-blue-france); border-color: var(--background-action-high-blue-france); color: #fff; }
+.tool-progress__label { font-size: 0.8125rem; font-weight: 700; color: var(--text-mention-grey); }
+.tool-progress__node.is-current .tool-progress__label, .tool-progress__node.is-done .tool-progress__label { color: var(--text-title-grey); }

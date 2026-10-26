@@ -1,0 +1,43 @@
+.tool-hero { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; }
+.tool-hero__icon {
+  flex: none; display: grid; place-items: center; width: 4.5rem; height: 4.5rem; border-radius: 1rem;
+  background: var(--background-action-low-blue-france); color: var(--text-action-high-blue-france);
+}
+.tool-hero__icon::before { --icon-size: 2rem; margin: 0; }
+.tool-hero h1 { margin: 0 0 0.5rem; }
+.tool-hero .fr-badges-group { margin: 0; }
+
+.tool-layout { display: grid; gap: 1.5rem; }
+@media (min-width: 62em) { .tool-layout { grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr); align-items: start; } }
+
+.tool-panel {
+  padding: 1.5rem; border: 1px solid var(--border-default-grey); border-radius: 0.5rem;
+  background: var(--background-default-grey);
+}
+.tool-panel + .tool-panel { margin-top: 1.5rem; }
+.tool-panel__title { margin: 0 0 1rem; font-size: 1.125rem; }
+.tool-panel p:last-child { margin-bottom: 0; }
+
+/* Chaîne d'origine : serveur / API -> outil */
+.tool-origin { display: flex; align-items: stretch; gap: 0.75rem; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+.tool-origin__node {
+  flex: 1 1 12rem; min-width: 0; padding: 0.75rem 1rem; border-radius: 0.5rem;
+  background: var(--background-alt-grey); overflow-wrap: anywhere;
+}
+.tool-origin__label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-mention-grey); }
+.tool-origin__arrow { align-self: center; color: var(--text-mention-grey); }
+.tool-origin__arrow::before { --icon-size: 1.25rem; }
+.tool-origin__url { display: block; margin-top: 0.25rem; font-size: 0.8125rem; color: var(--text-mention-grey); }
+
+.tool-route { display: flex; align-items: center; gap: 0.5rem; margin-top: 1rem; flex-wrap: wrap; }
+.tool-route code { padding: 0.25rem 0.5rem; border-radius: 0.25rem; background: var(--background-contrast-grey); }
+.tool-method { padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-weight: 700; font-size: 0.8125rem; color: #fff; background: #0063cb; }
+.tool-method--post { background: #18753c; }
+.tool-method--put, .tool-method--patch { background: #b34000; }
+.tool-method--delete { background: #ce0500; }
+
+.tool-facts { margin: 0; }
+.tool-facts div + div { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-default-grey); }
+.tool-facts dt { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-mention-grey); }
+.tool-facts dd { margin: 0.25rem 0 0; font-weight: 500; }
+.tool-hero__action { margin-left: auto; }
