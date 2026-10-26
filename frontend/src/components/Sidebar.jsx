@@ -1,4 +1,5 @@
 import { Link, NavLink } from "react-router";
+import { useAuth } from "../auth/AuthContext";
 import UserMenu from "./UserMenu";
 import { searchModalJS } from "./searchModalJS";
 import useAppVersion from "./useAppVersion";
@@ -8,6 +9,7 @@ import { TYPE_ICONS } from "../tools/types";
 export default function Sidebar({ id, open, onNavigate }) {
   const version = useAppVersion();
   const history = useHistory();
+  const { user } = useAuth();
 
   return (
     <aside
@@ -36,6 +38,14 @@ export default function Sidebar({ id, open, onNavigate }) {
               Accueil
             </NavLink>
           </li>
+          {user?.roles?.includes("admin") && (
+            <li>
+              <NavLink to="/recherche/qualite" className="app-sidebar__link" onClick={onNavigate}>
+                <span className="fr-icon-bar-chart-box-line fr-icon--sm" aria-hidden="true" />
+                Qualité de la recherche
+              </NavLink>
+            </li>
+          )}
           {/* futurs onglets : une <li><NavLink …> par page */}
         </ul>
       </nav>
