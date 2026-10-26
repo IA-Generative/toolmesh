@@ -3,6 +3,8 @@ import Landing from "./pages/Landing";
 import MentionsLegales from "./pages/MentionsLegales";
 import RequireAuth from "./auth/RequireAuth";
 import Home from "./pages/Home";
+import AddTool from "./pages/AddTool";
+import ToolDetail from "./pages/ToolDetail";
 import NotFound from "./pages/NotFound";
 import PublicLayout from "./layouts/PublicLayout";
 import AppLayout from "./layouts/AppLayout";
@@ -19,6 +21,8 @@ export default function App() {
 
         <Route element={<RequireAuth><AppLayout /></RequireAuth>}>
           <Route path="/accueil" element={<Home />}/>
+          <Route path="/outils/nouveau" element={<AddTool />}/>
+          <Route path="/outils/:name" element={<ToolDetail />}/>
         </Route>
       </Routes>
     </>
