@@ -1,0 +1,16 @@
+{{- if .Values.enabled }}
+{{- if or .Values.mcp_search.envCm .Values.global.envCm -}}
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+data:
+  {{- if .Values.global.envCm -}}
+  {{- include "helper.env" (dict "root" . "data" .Values.global.envCm) | indent 2 }}
+  {{- end -}}
+  {{- if .Values.mcp_search.envCm -}}
+  {{- include "helper.env" (dict "root" . "data" .Values.mcp_search.envCm) | indent 2 }}
+  {{- end -}}
+{{- end -}}
+{{- end }}

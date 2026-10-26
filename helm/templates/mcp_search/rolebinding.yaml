@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- /* Gated on `rules` as well, exactly like role.yaml: without it, an empty `rules` list yields a
+RoleBinding whose roleRef points at a Role that was never created. */ -}}
+{{- if and .Values.mcp_search.serviceAccount.enabled .Values.mcp_search.serviceAccount.role.create .Values.mcp_search.serviceAccount.role.rules }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.mcp_search.serviceAccount.name | default (include "helper.componentFullname" (dict "root" . "componentName" "mcp_search")) }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

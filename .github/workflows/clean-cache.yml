@@ -81,6 +81,7 @@ jobs:
                 service:
                     - backend
                     - mcp-datetime
+                    - mcp-search
         with:
             IMAGE: ${{ needs.list-closed-prs.outputs.image-base }}/${{ matrix.service }}:pr-${{ matrix.pr.number }}
 
@@ -96,6 +97,7 @@ jobs:
                 service:
                     - backend
                     - mcp-datetime
+                    - mcp-search
         with:
             IMAGE: ${{ needs.list-closed-prs.outputs.image-base }}/${{ matrix.service }}
             CLEAN_TAGGED: false

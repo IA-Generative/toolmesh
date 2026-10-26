@@ -1,0 +1,53 @@
+{{- if .Values.enabled }}
+{{- if .Values.mcp_search.ingress.enabled -}}
+{{- $fullNameApp := include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") -}}
+{{- $svcPortApp := .Values.mcp_search.service.port -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+  {{- if .Values.mcp_search.ingress.labels }}
+    {{- toYaml .Values.mcp_search.ingress.labels | nindent 4 }}
+  {{- end }}
+  {{- if .Values.mcp_search.ingress.annotations }}
+  annotations:
+    {{- tpl (toYaml .Values.mcp_search.ingress.annotations) . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.mcp_search.ingress.className }}
+  ingressClassName: {{ .Values.mcp_search.ingress.className }}
+  {{- end }}
+  {{- if gt (len .Values.mcp_search.ingress.tls) 0 }}
+  tls:
+  {{- range .Values.mcp_search.ingress.tls }}
+  - hosts:
+    {{- range .hosts }}
+    - {{ . | quote }}
+    {{- end }}
+    secretName: {{ .secretName | default (printf "%s-%s" $fullNameApp "tls") | quote }}
+  {{- end }}
+  {{- end }}
+  rules:
+  {{- range .Values.mcp_search.ingress.hosts }}
+  - host: {{ .name | quote }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path | default "/" }}
+        pathType: {{ .pathType | default "Prefix" }}
+        mcp_search:
+          service:
+          {{- if .mcp_search }}
+            name: {{ .mcp_search.serviceName | default $fullNameApp }}
+            port:
+              number: {{ .mcp_search.portNumber | default $svcPortApp }}
+          {{- else }}
+            name: {{ $fullNameApp }}
+            port:
+              number: 80
+          {{- end }}
+      {{- end }}
+  {{- end }}
+{{- end }}
+{{- end }}

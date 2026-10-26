@@ -18,7 +18,7 @@ Chaque composant (`backend`, `frontend`, `mcp_datetime`) charge des `Secret` dan
 
 ## Où les écrire dans Vault
 
-Quatre secrets KV v2. `keycloak` est lu par le backend et le MCP ; `redis` par le backend ; `db-superuser` et `db-appuser` par le
+Cinq secrets KV v2. `keycloak` est lu par le backend et les serveurs MCP ; `searxng` par le moteur de recherche ; `redis` par le backend ; `db-superuser` et `db-appuser` par le
 cluster PostgreSQL (CloudNativePG), `db-appuser` l'étant aussi par le backend et le job de migration.
 
 ### `keycloak`
@@ -28,7 +28,7 @@ cluster PostgreSQL (CloudNativePG), `db-appuser` l'étant aussi par le backend e
 | Montage KV v2 | `global.vaultMount` (défaut `exploration`) |
 | Chemin | `<global.vaultEnv>/toolmesh/keycloak` (`vaultEnv` : `dev`, `staging`, `prod`...) |
 | `Secret` Kubernetes créé | `toolmesh-keycloak` |
-| Lu par | `backend`, `mcp_datetime` |
+| Lu par | `backend`, `mcp_datetime`, `mcp_search` |
 
 Clés à y écrire :
 
@@ -38,6 +38,8 @@ Clés à y écrire :
 | `TOOLMESH_KEYCLOAK_CLIENT_SECRET` | **Secret** du client `toolmesh` (login navigateur, grants password/refresh, token exchange) | ✔ | |
 | `MCP_DATETIME_OIDC_ISSUER` | Issuer Keycloak du serveur MCP (`https://<keycloak>/realms/<realm>`) | | ✔ |
 | `MCP_DATETIME_OIDC_AUDIENCE` | Audience attendue par le serveur MCP (`mcp-datetime`) | | ✔ |
+| `MCP_SEARCH_OIDC_ISSUER` | Issuer Keycloak du serveur MCP de recherche (même valeur que ci-dessus) | | ✔ (`mcp_search`) |
+| `MCP_SEARCH_OIDC_AUDIENCE` | Audience attendue par le serveur MCP de recherche (`mcp-search`) | | ✔ (`mcp_search`) |
 
 Le realm (`TOOLMESH_KEYCLOAK_REALM`) et le client (`TOOLMESH_KEYCLOAK_CLIENT_ID`, `toolmesh`) ne sont pas secrets :
 ils sont dans `backend.env` de [`values/common-values.yaml`](values/common-values.yaml), comme pour Muffin. L'issuer
@@ -54,8 +56,14 @@ vault kv put exploration/dev/toolmesh/keycloak \
   TOOLMESH_KEYCLOAK_URL="https://keycloak.example.org" \
   TOOLMESH_KEYCLOAK_CLIENT_SECRET="<secret du client Keycloak toolmesh>" \
   MCP_DATETIME_OIDC_ISSUER="https://keycloak.example.org/realms/toolmesh" \
-  MCP_DATETIME_OIDC_AUDIENCE="mcp-datetime"
+  MCP_DATETIME_OIDC_AUDIENCE="mcp-datetime" \
+  MCP_SEARCH_OIDC_ISSUER="https://keycloak.example.org/realms/toolmesh" \
+  MCP_SEARCH_OIDC_AUDIENCE="mcp-search"
 ```
+
+Le client `mcp-search` doit exister dans le realm Keycloak, comme `mcp-datetime` : client confidentiel, rôle client `access`
+donné aux utilisateurs, et rôle `access` ajouté au *scope* du client `toolmesh` (`clientScopeMappings`), faute de quoi
+l'échange de token répond « Requested audience not available » (voir `keycloak/toolmesh-realm.json`).
 
 Variable optionnelle à ajouter dans `backend.env` si le navigateur joint Keycloak par une autre adresse que le
 backend : `TOOLMESH_KEYCLOAK_PUBLIC_URL`.
@@ -75,6 +83,21 @@ L'opérateur construit lui-même `TOOLMESH_REDIS_URL` (`redis://:<mot de passe>@
 
 ```bash
 vault kv put exploration/dev/toolmesh/redis REDIS_PASSWORD="$(openssl rand -base64 32)"
+```
+
+### `searxng`
+
+Clé secrète de SearXNG (moteur de recherche du serveur MCP `mcp_search`), qui n'est joignable que depuis le cluster.
+
+| Élément | Valeur |
+|---|---|
+| Chemin | `<global.vaultEnv>/toolmesh/searxng` |
+| `Secret` Kubernetes créé | `toolmesh-searxng` |
+| Lu par | SearXNG (`searxng.secret.existingSecret`) |
+| Clé à écrire | `SEARXNG_SECRET` |
+
+```bash
+vault kv put exploration/dev/toolmesh/searxng SEARXNG_SECRET="$(openssl rand -hex 32)"
 ```
 
 ### `db-superuser`
@@ -135,7 +158,7 @@ Le chemin et le montage se règlent dans le fichier d'environnement (`global.vau
 
 ## Comment ça arrive dans les pods
 
-1. Les `VaultStaticSecret` (`toolmesh-keycloak`, `toolmesh-redis`, `toolmesh-db-superuser`, `toolmesh-db-appuser`,
+1. Les `VaultStaticSecret` (`toolmesh-keycloak`, `toolmesh-redis`, `toolmesh-searxng`, `toolmesh-db-superuser`, `toolmesh-db-appuser`,
    `toolmesh-db-infos`) lisent leur chemin toutes les 60 s (`refreshAfter`).
 2. Le Vault Secrets Operator crée les `Secret` Kubernetes correspondants.
 3. Les pods les chargent via `envFrom` (le cluster PostgreSQL lit `toolmesh-db-superuser` et `toolmesh-db-appuser` directement).

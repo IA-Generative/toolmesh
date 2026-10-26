@@ -1,0 +1,19 @@
+{{- if .Values.enabled }}
+{{- /* Gated on `rules` as well, exactly like clusterrole.yaml: without it, an empty `rules` list
+yields a ClusterRoleBinding whose roleRef points at a ClusterRole that was never created. */ -}}
+{{- if and .Values.mcp_search.serviceAccount.enabled .Values.mcp_search.serviceAccount.clusterRole.create .Values.mcp_search.serviceAccount.clusterRole.rules }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.mcp_search.serviceAccount.name | default (include "helper.componentFullname" (dict "root" . "componentName" "mcp_search")) }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}
+{{- end }}

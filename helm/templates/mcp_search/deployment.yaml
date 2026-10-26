@@ -1,0 +1,25 @@
+{{- if .Values.enabled }}
+{{- if eq .Values.mcp_search.deploymentType "Deployment" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helper.componentFullname" (dict "root" . "componentName" "mcp_search") }}
+  labels: {{- (include "helper.labels" (dict "root" . "componentName" "mcp_search")) | nindent 4 }}
+spec:
+  {{- if not .Values.mcp_search.autoscaling.enabled }}
+  replicas: {{ .Values.mcp_search.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.mcp_search.revisionHistoryLimit | default 10 }}
+  selector:
+    matchLabels: {{- include "helper.selectorLabels" (dict "root" . "componentName" "mcp_search") | nindent 6 }}
+  strategy:
+    type: {{ .Values.mcp_search.strategy.type }}
+    {{- if eq .Values.mcp_search.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .Values.mcp_search.strategy.rollingUpdate.maxUnavailable }}
+      maxSurge: {{ .Values.mcp_search.strategy.rollingUpdate.maxSurge }}
+    {{- end }}
+  template:
+    {{- include "helper.component.podTemplate" (dict "root" . "name" "mcp_search" "component" .Values.mcp_search) | nindent 4 }}
+{{- end }}
+{{- end }}

@@ -17,6 +17,11 @@
           "type": "toml",
           "path": "mcp-datetime/pyproject.toml",
           "jsonpath": "project.version"
+        },
+        {
+          "type": "toml",
+          "path": "mcp-search/pyproject.toml",
+          "jsonpath": "project.version"
         }
       ],
       "changelog-sections": [
