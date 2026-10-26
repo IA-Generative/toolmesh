@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import Alert from "@codegouvfr/react-dsfr/Alert";
 import { useAuth } from "../auth/AuthContext";
-import { fetchMyTools, searchTools } from "../auth/api";
+import { fetchMyTools, searchTools, sendClick } from "../auth/api";
 
 import { TYPE_LABELS } from "../tools/types";
+import SearchFeedback from "../tools/SearchFeedback";
 import ToolCard, { FilterTag } from "../tools/ToolCard";
 
 
@@ -35,7 +36,7 @@ export default function Home() {
     if (!rawQuery) return;
     let current = true;
     searchTools({ q: rawQuery, type: activeType, tags: activeTags, version: activeVersion })
-      .then((r) => current && setFound({ key: searchKey, tools: r.tools, mode: r.mode }))
+      .then((r) => current && setFound({ key: searchKey, tools: r.tools, mode: r.mode, searchId: r.search_id }))
       .catch((e) => current && setError(e.message));
     return () => {
       current = false;
@@ -139,7 +140,7 @@ export default function Home() {
                 {visible
                   ? `${visible.length} outil${visible.length > 1 ? "s" : ""} sur ${tools.length}`
                   : "Recherche en cours…"}
-                {searching && results && MODE_HINTS[results.mode] ? ` ${MODE_HINTS[results.mode]}` : ""}
+                {searching && results && MODE_HINTS[results.mode] ? `. ${MODE_HINTS[results.mode]}` : ""}
               </p>
               {filtered && (
                 <button type="button" className="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" onClick={reset}>
@@ -149,6 +150,10 @@ export default function Home() {
             </div>
           </section>
 
+          {results?.searchId && (
+            <SearchFeedback key={results.searchId} searchId={results.searchId} results={results.tools} allTools={tools} />
+          )}
+
           {visible?.length === 0 && (
             <Alert severity="info" title="Aucun résultat" description="Aucun outil ne correspond à votre recherche ou à vos filtres." />
           )}
@@ -157,9 +162,15 @@ export default function Home() {
 
       {visible?.length > 0 && (
         <ul className="fr-grid-row fr-grid-row--gutters fr-raw-list">
-          {visible.map((t) => (
+          {visible.map((t, i) => (
             <li key={t.name} className="fr-col-12 fr-col-md-6 fr-col-lg-4">
-              <ToolCard tool={t} to={`/outils/${encodeURIComponent(t.name)}`} activeTags={activeTags} onTag={toggleTag} />
+              <ToolCard
+                tool={t}
+                to={`/outils/${encodeURIComponent(t.name)}`}
+                activeTags={activeTags}
+                onTag={toggleTag}
+                onOpen={results?.searchId ? () => sendClick(results.searchId, t.name, i + 1) : undefined}
+              />
             </li>
           ))}
         </ul>
