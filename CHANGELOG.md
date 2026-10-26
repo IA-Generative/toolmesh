@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.0](https://github.com/IA-Generative/toolmesh/compare/v0.12.0...v0.13.0) (2026-10-26)
+
+
+### Features
+
+* **backend:** hybrid search of the tools in Qdrant and the version of the sources ([c121384](https://github.com/IA-Generative/toolmesh/commit/c12138447b54bc69c2321d1009eff4c23acd4597))
+* **chart:** deploy Qdrant for the tool search ([a9d6bac](https://github.com/IA-Generative/toolmesh/commit/a9d6bac62dd54c4bc92a628e774379fff86f699d))
+* **front:** relevance search, version filter and display ([b9aaf85](https://github.com/IA-Generative/toolmesh/commit/b9aaf854ae922b14e90db2fdf855fcae67f42a82))
+* **mcp:** announce the server version ([beb0a18](https://github.com/IA-Generative/toolmesh/commit/beb0a186e357e2833c7f87e1faa242190d6dae04))
+
 ## [0.12.0](https://github.com/IA-Generative/toolmesh/compare/v0.11.0...v0.12.0) (2026-10-26)
 
 
