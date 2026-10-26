@@ -2874,3 +2874,9 @@ extraObjects: {}
 # @section -- Dependencies
 redis:
   enabled: false
+
+# -- Bundled PostgreSQL (registry of sources and tools), run by the CloudNativePG operator, which must be installed in the cluster.
+# Off by default: point `TOOLMESH_DATABASE_URL` at an existing PostgreSQL instead.
+# @section -- Dependencies
+cnpg:
+  enabled: false

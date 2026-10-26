@@ -10,6 +10,7 @@ Kubernetes: `>=1.25.0-0`
 
 | Repository | Name | Version |
 |------------|------|---------|
+| https://cloudnative-pg.github.io/charts | cnpg(cluster) | 0.8.1 |
 | oci://registry-1.docker.io/cloudpirates | redis(redis) | 0.27.9 |
 
 ## Values
@@ -18,6 +19,7 @@ Kubernetes: `>=1.25.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| cnpg | object | `{"enabled":false}` | Bundled PostgreSQL (registry of sources and tools), run by the CloudNativePG operator, which must be installed in the cluster. Off by default: point `TOOLMESH_DATABASE_URL` at an existing PostgreSQL instead. |
 | commonLabels | object | `{}` | Add labels to all the deployed resources |
 | cronjobs | object | `{}` | Map of CronJobs to create (e.g. periodic archiving, cleanup, reports...). Each key is used as the cronjob name and as its `app.kubernetes.io/component` label. Every entry accepts the same fields as a `jobs` entry (see above, minus `hook`) plus the scheduling fields documented in the commented example below. |
 | enabled | bool | `true` | Master switch for the whole chart. When `false`, every template renders nothing - use this to keep a release/namespace registered with a deployment system (e.g. an ArgoCD Application that always gets generated for every app/env combination) without actually deploying any resource into it. Note this does NOT cover subchart dependencies added via `Chart.yaml` (e.g. a bundled database/cache) - those still need their own `enabled: false` alongside this one. |
