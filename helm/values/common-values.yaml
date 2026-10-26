@@ -440,6 +440,10 @@ searxng:
     existingSecret: "toolmesh-searxng"
     secretKey: "SEARXNG_SECRET"
   extraConfig:
+    # The chart writes the string "false" here when its Valkey is off, and SearXNG then fails at startup with
+    # "Valkey URL must specify one of the following schemes". The boolean `false` is what disables Valkey.
+    valkey:
+      url: false
     ui:
       default_locale: fr
     outgoing:
