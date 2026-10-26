@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import searchlog
 from app.auth import CurrentUser
 from app.config import Settings, get_settings
 from app.db.models import Source, Tool
@@ -40,6 +42,9 @@ class SearchOut(BaseModel):
     # hybrid: keywords + embeddings; keyword: keywords only (no embeddings API); basic: plain match on the registry
     # (no search index); filter: no query, filters only.
     mode: Literal["hybrid", "keyword", "basic", "filter"]
+    # Identifies this search, to say afterwards whether it worked (POST /api/search/{search_id}/feedback); None when
+    # there was no query or the log is off.
+    search_id: str | None = None
 
 
 @router.get("/me/tools/search")
@@ -55,21 +60,40 @@ async def search_my_tools(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> SearchOut:
     """Search the tools visible to the caller (relevance order) and/or filter them by type, tags, source and version."""
+    started = time.perf_counter()
     visible = await visible_tools(db, user)
     query = q.strip()
+    flt = Filters(type, tuple(tag), source, version)
+    result: SearchOut | None = None
     index = get_index(settings) if query else None
     if index is not None:
         try:
-            names = await index.search(query, user.roles, Filters(type, tuple(tag), source, version), limit)
+            names = await index.search(query, user.roles, flt, limit)
         except Exception:
             logger.exception("Search index unavailable, falling back to the registry")
         else:
             by_name = {t.name: t for t in visible}  # the registry decides what the caller may see
-            return SearchOut(
+            result = SearchOut(
                 tools=[by_name[n] for n in names if n in by_name], mode="hybrid" if index.dense else "keyword"
             )
-    tools = filter_tools(visible, query, type, tuple(tag), source, version)[:limit]
-    return SearchOut(tools=tools, mode="basic" if query else "filter")
+    if result is None:
+        tools = filter_tools(visible, query, type, tuple(tag), source, version)[:limit]
+        result = SearchOut(tools=tools, mode="basic" if query else "filter")
+    if query and settings.search_log_enabled:
+        try:
+            result.search_id = await searchlog.record_search(
+                db,
+                user.sub,
+                query,
+                {k: v for k, v in {"type": type, "tags": list(tag), "source": source, "version": version}.items() if v},
+                result.mode,
+                [t.name for t in result.tools],
+                round((time.perf_counter() - started) * 1000),
+            )
+        except Exception:
+            logger.exception("Could not log the search")
+            await db.rollback()
+    return result
 
 
 @router.get("/me/tools/{name}")

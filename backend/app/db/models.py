@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -62,3 +62,48 @@ class Tool(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     source: Mapped[Source] = relationship(back_populates="tools")
+
+
+class SearchEvent(Base):
+    """A search made through GET /api/me/tools/search with a query: the base of the quality statistics."""
+
+    __tablename__ = "search_events"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    user_sub: Mapped[str] = mapped_column(String(255))
+    query: Mapped[str] = mapped_column(Text)
+    filters: Mapped[dict] = mapped_column(JSON, default=dict)
+    mode: Mapped[str] = mapped_column(String(10))
+    results: Mapped[list[str]] = mapped_column(JSON, default=list)
+    took_ms: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class SearchClick(Base):
+    """The user opened a result: an implicit sign that it was the one looked for."""
+
+    __tablename__ = "search_clicks"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    search_id: Mapped[str] = mapped_column(ForeignKey("search_events.id", ondelete="CASCADE"), index=True)
+    tool: Mapped[str] = mapped_column(String(100))
+    rank: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SearchFeedback(Base):
+    """What a user says about a search. Once an admin approves it, it is part of the dataset and teaches the index."""
+
+    __tablename__ = "search_feedback"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
+    search_id: Mapped[str] = mapped_column(ForeignKey("search_events.id", ondelete="CASCADE"), index=True)
+    user_sub: Mapped[str] = mapped_column(String(255))
+    verdict: Mapped[str] = mapped_column(String(10))  # found | not_found
+    # The tools that were the right answer. Empty with `not_found`: the catalogue has nothing for this query.
+    expected: Mapped[list[str]] = mapped_column(JSON, default=list)
+    comment: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="pending", index=True)  # pending | approved | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    reviewed_by: Mapped[str | None] = mapped_column(String(255))
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

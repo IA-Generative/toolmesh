@@ -1,13 +1,16 @@
 import logging
 from functools import lru_cache
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.config import Settings
 from app.db.models import Source
+from app.searchlog import learned_aliases
 from app.toolsearch.index import Filters, ToolIndex
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["Filters", "ToolIndex", "get_index", "sync_source", "forget_source"]
+__all__ = ["Filters", "ToolIndex", "get_index", "sync_source", "sync_source_with_feedback", "forget_source"]
 
 
 @lru_cache
@@ -47,16 +50,28 @@ def get_index(settings: Settings) -> ToolIndex | None:
     )
 
 
-async def sync_source(settings: Settings, source: Source) -> None:
+async def sync_source(settings: Settings, source: Source, aliases: dict[str, list[str]] | None = None) -> None:
     """Keep the index up to date; a failure is logged, never raised (a reindex repairs it)."""
     index = get_index(settings)
     if index is None:
         return
     try:
         await index.ensure_collection()
-        await index.index_source(source)
+        await index.index_source(source, aliases)
     except Exception:
         logger.exception("Could not index the tools of %s", source.name)
+
+
+async def sync_source_with_feedback(settings: Settings, db: AsyncSession, source: Source) -> None:
+    """`sync_source`, with the aliases learned from the approved verdicts of users."""
+    if get_index(settings) is None:
+        return
+    try:
+        aliases = await learned_aliases(db)
+    except Exception:
+        logger.exception("Could not read the learned aliases")
+        aliases = None
+    await sync_source(settings, source, aliases)
 
 
 async def forget_source(settings: Settings, source_id: str) -> None:
