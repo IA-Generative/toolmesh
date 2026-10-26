@@ -1,4 +1,4 @@
-# Dev stack: Keycloak (realm auto-imported) + backend and frontend with hot reload.
+# Dev stack: Keycloak (realm auto-imported), PostgreSQL + backend and frontend with hot reload.
 services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
@@ -16,6 +16,21 @@ services:
   redis:
     image: redis:7-alpine
 
+  # Registry of sources and tools.
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: toolmesh
+      POSTGRES_PASSWORD: toolmesh
+      POSTGRES_DB: toolmesh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toolmesh"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: ./backend
@@ -29,6 +44,8 @@ services:
       TOOLMESH_DOWNSTREAM_URL: http://downstream:8000
       TOOLMESH_MCP_DATETIME_URL: http://mcp-datetime:8000/mcp
       TOOLMESH_REDIS_URL: redis://redis:6379/0
+      TOOLMESH_DATABASE_URL: postgresql+asyncpg://toolmesh:toolmesh@postgres:5432/toolmesh
+      TOOLMESH_SEED_DEMO_DATA: "true"
       TOOLMESH_FRONTEND_URL: ${TOOLMESH_FRONTEND_URL:-http://localhost:3000}
       TOOLMESH_BACKEND_PUBLIC_URL: http://localhost:${TOOLMESH_BACKEND_PORT:-8010}
     ports:
@@ -36,8 +53,12 @@ services:
     volumes:
       - ./backend/app:/app/app
     depends_on:
-      - keycloak
-      - redis
+      keycloak:
+        condition: service_started
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   # Mock downstream service: accepts only tokens with audience `downstream-service`.
   downstream:
@@ -82,3 +103,4 @@ services:
 
 volumes:
   frontend_node_modules:
+  postgres_data:

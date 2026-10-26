@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     mcp_datetime_url: str = "http://localhost:8030/mcp"
     mcp_datetime_audience: str = "mcp-datetime"
 
+    # Registry of sources and tools.
+    database_url: str = "postgresql+asyncpg://toolmesh:toolmesh@localhost:5432/toolmesh"
+    # Apply the Alembic migrations when the app starts.
+    auto_migrate: bool = True
+    # Insert a few example sources and tools when the registry is empty (development only).
+    seed_demo_data: bool = False
+
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
     redis_url: str = "redis://localhost:6379/0"
