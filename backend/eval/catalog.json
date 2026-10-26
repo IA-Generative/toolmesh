@@ -1,0 +1,868 @@
+[
+ {
+  "name": "search-mcp",
+  "type": "mcp",
+  "version": "0.12.0",
+  "description": "Recherche sur le web et lecture de pages",
+  "tools": [
+   {
+    "name": "web_search",
+    "description": "Search the web and return the most relevant results with their title, url and snippet. `language` is a code such as fr or en; `time_range` restricts to the last day, week, month or year.",
+    "tags": [
+     "recherche",
+     "web"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "query": {
+       "type": "string"
+      },
+      "max_results": {
+       "type": "integer"
+      },
+      "language": {
+       "type": "string"
+      },
+      "time_range": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "query"
+     ]
+    }
+   },
+   {
+    "name": "fetch_page",
+    "description": "Download a web page and return its title and readable text.",
+    "tags": [
+     "web",
+     "texte"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "url": {
+       "type": "string",
+       "description": "Page to download"
+      },
+      "max_chars": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "url"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "datetime-mcp",
+  "type": "mcp",
+  "version": "0.12.0",
+  "description": "Dates, fuseaux horaires et périodes",
+  "tools": [
+   {
+    "name": "now",
+    "description": "Current date and time in an IANA time zone (e.g. Europe/Paris).",
+    "tags": [
+     "date"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "timezone": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   {
+    "name": "convert_timezone",
+    "description": "Convert an ISO datetime to another time zone. Naive datetimes are read in `from_timezone`.",
+    "tags": [
+     "date",
+     "fuseau"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "datetime_iso": {
+       "type": "string"
+      },
+      "from_timezone": {
+       "type": "string"
+      },
+      "to_timezone": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "datetime_iso",
+      "from_timezone",
+      "to_timezone"
+     ]
+    }
+   },
+   {
+    "name": "add_to_date",
+    "description": "Add (or subtract, with a negative amount) days, weeks, months or years. Month ends are clamped.",
+    "tags": [
+     "date"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "date_iso": {
+       "type": "string"
+      },
+      "amount": {
+       "type": "integer"
+      },
+      "unit": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "date_iso",
+      "amount",
+      "unit"
+     ]
+    }
+   },
+   {
+    "name": "date_diff",
+    "description": "Difference between two ISO dates: total days/weeks and a calendar breakdown (years, months, days).",
+    "tags": [
+     "date"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "start": {
+       "type": "string"
+      },
+      "end": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "start",
+      "end"
+     ]
+    }
+   },
+   {
+    "name": "weekday",
+    "description": "Weekday, ISO week number, day of year and leap-year flag for a date.",
+    "tags": [
+     "date"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "date_iso": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "date_iso"
+     ]
+    }
+   },
+   {
+    "name": "period_bounds",
+    "description": "First and last day of the week (Mon-Sun), month, quarter or year containing the date.",
+    "tags": [
+     "date",
+     "période"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "date_iso": {
+       "type": "string"
+      },
+      "kind": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "date_iso",
+      "kind"
+     ]
+    }
+   },
+   {
+    "name": "business_days",
+    "description": "Count Mon-Fri days between two ISO dates, inclusive, excluding the optional ISO `holidays`.",
+    "tags": [
+     "date",
+     "jours ouvrés"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "start": {
+       "type": "string"
+      },
+      "end": {
+       "type": "string"
+      },
+      "holidays": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "start",
+      "end"
+     ]
+    }
+   },
+   {
+    "name": "add_business_days",
+    "description": "Move a date forward (or backward, if negative) by N business days, skipping weekends and `holidays`.",
+    "tags": [
+     "date",
+     "jours ouvrés"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "date_iso": {
+       "type": "string"
+      },
+      "amount": {
+       "type": "integer"
+      },
+      "holidays": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     },
+     "required": [
+      "date_iso",
+      "amount"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "petstore",
+  "type": "api",
+  "version": "1.0.28",
+  "description": "Animalerie de démonstration (Swagger Petstore)",
+  "tools": [
+   {
+    "name": "findPetsByStatus",
+    "description": "Finds Pets by status. Multiple status values can be provided with comma separated strings.",
+    "tags": [
+     "pet"
+    ],
+    "method": "GET",
+    "path": "/pet/findByStatus",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "status": {
+       "type": "string",
+       "description": "Status values that need to be considered for filter: available, pending, sold"
+      }
+     },
+     "required": [
+      "status"
+     ]
+    }
+   },
+   {
+    "name": "findPetsByTags",
+    "description": "Finds Pets by tags. Multiple tags can be provided with comma separated strings.",
+    "tags": [
+     "pet"
+    ],
+    "method": "GET",
+    "path": "/pet/findByTags",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "tags": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       },
+       "description": "Tags to filter by"
+      }
+     }
+    }
+   },
+   {
+    "name": "getPetById",
+    "description": "Returns a single pet.",
+    "tags": [
+     "pet"
+    ],
+    "method": "GET",
+    "path": "/pet/{petId}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "petId": {
+       "type": "integer",
+       "description": "ID of pet to return"
+      }
+     },
+     "required": [
+      "petId"
+     ]
+    }
+   },
+   {
+    "name": "addPet",
+    "description": "Add a new pet to the store.",
+    "tags": [
+     "pet"
+    ],
+    "method": "POST",
+    "path": "/pet",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "body": {
+       "type": "object"
+      }
+     },
+     "required": [
+      "body"
+     ]
+    }
+   },
+   {
+    "name": "updatePet",
+    "description": "Update an existing pet by Id.",
+    "tags": [
+     "pet"
+    ],
+    "method": "PUT",
+    "path": "/pet",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "body": {
+       "type": "object"
+      }
+     },
+     "required": [
+      "body"
+     ]
+    }
+   },
+   {
+    "name": "deletePet",
+    "description": "Deletes a pet.",
+    "tags": [
+     "pet"
+    ],
+    "method": "DELETE",
+    "path": "/pet/{petId}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "petId": {
+       "type": "integer",
+       "description": "Pet id to delete"
+      }
+     },
+     "required": [
+      "petId"
+     ]
+    }
+   },
+   {
+    "name": "getInventory",
+    "description": "Returns a map of status codes to quantities.",
+    "tags": [
+     "store"
+    ],
+    "method": "GET",
+    "path": "/store/inventory",
+    "input_schema": {
+     "type": "object",
+     "properties": {}
+    }
+   },
+   {
+    "name": "placeOrder",
+    "description": "Place a new order in the store.",
+    "tags": [
+     "store"
+    ],
+    "method": "POST",
+    "path": "/store/order",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "body": {
+       "type": "object"
+      }
+     }
+    }
+   },
+   {
+    "name": "getOrderById",
+    "description": "For valid response try integer IDs with value <= 5 or > 10. Other values will generate exceptions.",
+    "tags": [
+     "store"
+    ],
+    "method": "GET",
+    "path": "/store/order/{orderId}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "orderId": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "orderId"
+     ]
+    }
+   },
+   {
+    "name": "createUser",
+    "description": "This can only be done by the logged in user.",
+    "tags": [
+     "user"
+    ],
+    "method": "POST",
+    "path": "/user",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "body": {
+       "type": "object"
+      }
+     }
+    }
+   },
+   {
+    "name": "loginUser",
+    "description": "Log into the system with a username and a password.",
+    "tags": [
+     "user"
+    ],
+    "method": "GET",
+    "path": "/user/login",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "username": {
+       "type": "string"
+      },
+      "password": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   {
+    "name": "getUserByName",
+    "description": "Get user detail based on username.",
+    "tags": [
+     "user"
+    ],
+    "method": "GET",
+    "path": "/user/{username}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "username": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "username"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "weather-api",
+  "type": "api",
+  "version": "2.3.1",
+  "description": "Météo France: conditions actuelles et prévisions",
+  "tools": [
+   {
+    "name": "get_weather",
+    "description": "Conditions météo actuelles d'une ville : température, vent, précipitations.",
+    "tags": [
+     "météo"
+    ],
+    "method": "GET",
+    "path": "/weather/{city}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "city": {
+       "type": "string",
+       "description": "Nom de la ville"
+      },
+      "units": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "city"
+     ]
+    }
+   },
+   {
+    "name": "get_forecast",
+    "description": "Prévisions météo à sept jours pour une ville.",
+    "tags": [
+     "météo"
+    ],
+    "method": "GET",
+    "path": "/forecast/{city}",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "city": {
+       "type": "string"
+      },
+      "days": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "city"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "gitlab-api",
+  "type": "api",
+  "version": "v4",
+  "description": "Forge logicielle: dépôts, tickets et merge requests",
+  "tools": [
+   {
+    "name": "list_issues",
+    "description": "Lister les tickets (issues) d'un projet, avec filtres par état et par étiquette.",
+    "tags": [
+     "ticket",
+     "forge"
+    ],
+    "method": "GET",
+    "path": "/projects/{id}/issues",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "state": {
+       "type": "string"
+      },
+      "labels": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id"
+     ]
+    }
+   },
+   {
+    "name": "create_issue",
+    "description": "Créer un nouveau ticket dans un projet.",
+    "tags": [
+     "ticket",
+     "forge"
+    ],
+    "method": "POST",
+    "path": "/projects/{id}/issues",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "title": {
+       "type": "string"
+      },
+      "description": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id",
+      "title"
+     ]
+    }
+   },
+   {
+    "name": "search_repositories",
+    "description": "Rechercher des dépôts de code par nom ou description.",
+    "tags": [
+     "code",
+     "forge"
+    ],
+    "method": "GET",
+    "path": "/search",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "search": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "search"
+     ]
+    }
+   },
+   {
+    "name": "list_merge_requests",
+    "description": "Lister les demandes de fusion (merge requests) ouvertes d'un projet.",
+    "tags": [
+     "code",
+     "forge"
+    ],
+    "method": "GET",
+    "path": "/projects/{id}/merge_requests",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "id": {
+       "type": "integer"
+      },
+      "state": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "id"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "mail-api",
+  "type": "api",
+  "version": "1.4.0",
+  "description": "Messagerie électronique",
+  "tools": [
+   {
+    "name": "send_email",
+    "description": "Envoyer un courriel à un ou plusieurs destinataires, avec un objet et un corps de message.",
+    "tags": [
+     "courriel",
+     "messagerie"
+    ],
+    "method": "POST",
+    "path": "/messages",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "to": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "subject": {
+       "type": "string"
+      },
+      "body": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "to",
+      "subject",
+      "body"
+     ]
+    }
+   },
+   {
+    "name": "search_emails",
+    "description": "Rechercher des courriels reçus par expéditeur, objet ou période.",
+    "tags": [
+     "courriel",
+     "messagerie"
+    ],
+    "method": "GET",
+    "path": "/messages",
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "from": {
+       "type": "string"
+      },
+      "subject": {
+       "type": "string"
+      },
+      "since": {
+       "type": "string"
+      }
+     }
+    }
+   }
+  ]
+ },
+ {
+  "name": "summarize",
+  "type": "skill",
+  "description": "Résume un texte long en quelques points clés.",
+  "tools": [
+   {
+    "name": "summarize",
+    "description": "Résume un texte long en quelques points clés, en conservant les chiffres et les noms propres.",
+    "tags": [
+     "texte",
+     "rédaction"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      },
+      "max_sentences": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "text"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "translate",
+  "type": "skill",
+  "description": "Traduit un texte entre le français et l'anglais.",
+  "tools": [
+   {
+    "name": "translate",
+    "description": "Traduit un texte du français vers l'anglais ou de l'anglais vers le français.",
+    "tags": [
+     "texte",
+     "langue"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      },
+      "target_language": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text",
+      "target_language"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "extract_entities",
+  "type": "skill",
+  "description": "Extrait les entités nommées d'un texte.",
+  "tools": [
+   {
+    "name": "extract_entities",
+    "description": "Extrait d'un texte les personnes, organisations, lieux et dates mentionnés.",
+    "tags": [
+     "texte",
+     "extraction"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "text"
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "name": "internal-db-mcp",
+  "type": "mcp",
+  "version": "1.0.0",
+  "description": "Base de données interne en lecture seule",
+  "required_role": "admin",
+  "tools": [
+   {
+    "name": "query_database",
+    "description": "Exécute une requête SQL en lecture seule sur la base de données interne.",
+    "tags": [
+     "données",
+     "sql"
+    ],
+    "method": null,
+    "path": null,
+    "input_schema": {
+     "type": "object",
+     "properties": {
+      "sql": {
+       "type": "string"
+      },
+      "limit": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "sql"
+     ]
+    }
+   }
+  ]
+ }
+]
