@@ -13,8 +13,11 @@ from app.db.session import get_sessionmaker
 from app.routers.admin import router as admin_router
 from app.routers.auth import router as auth_router
 from app.routers.health import router as health_router
+from app.routers.search_feedback import admin_router as search_admin_router
+from app.routers.search_feedback import user_router as search_user_router
 from app.routers.sources import router as sources_router
 from app.routers.tools import router as tools_router
+from app.searchlog import learned_aliases, purge_old_events
 from app.toolsearch import get_index
 from app.version import get_version
 
@@ -30,9 +33,15 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             if await index.ensure_collection():  # a new collection starts empty: fill it from the registry
                 async with get_sessionmaker()() as db:
-                    await index.reindex(list((await db.scalars(select(Source))).all()))
+                    await index.reindex(list((await db.scalars(select(Source))).all()), await learned_aliases(db))
         except Exception:
             logger.exception("The search index is not ready; POST /api/admin/reindex retries")
+    if settings.search_log_enabled:
+        try:
+            async with get_sessionmaker()() as db:
+                await purge_old_events(db, settings.search_log_retention_days)
+        except Exception:
+            logger.exception("Could not purge the old searches")
     yield
 
 
@@ -49,5 +58,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(search_user_router)
+app.include_router(search_admin_router)
 app.include_router(tools_router)
 app.include_router(sources_router)
