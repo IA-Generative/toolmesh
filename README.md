@@ -33,7 +33,7 @@ curl -s http://localhost:8080/realms/toolmesh/protocol/openid-connect/token \
 ## Browser login (BFF)
 
 For a web SPA, the backend acts as its BFF: it runs the OIDC authorization code flow with PKCE against the
-confidential Keycloak client `toolmesh` (via python-keycloak, same client as token exchange), keeps the tokens in Redis, and gives the browser only an opaque
+confidential Keycloak client `toolmesh` (via python-keycloak, same client as the token exchange), keeps the tokens in Redis, and gives the browser only an opaque
 `HttpOnly` cookie (`toolmesh_session`). Bearer tokens keep working for CLIs and agents, and token exchange is unchanged.
 
 | Endpoint | Role |
@@ -66,13 +66,24 @@ Scripts: `curl -s -X POST localhost:8010/api/auth/token -H 'Content-Type: applic
 
 `GET /api/mock/downstream` shows the pattern: toolmesh swaps the caller's token for a new one
 scoped to the downstream service (RFC 8693) and calls the mock service on :8020 with it.
-The downstream only accepts tokens with audience `downstream-service`, so the caller's original
-token is rejected there (`curl -H "Authorization: Bearer $TOKEN" localhost:8020/whoami` → 401).
+The downstream only accepts tokens with audience `downstream-service`. A token from a dev client such as
+`toolmesh-cli` is rejected there (`curl -H "Authorization: Bearer $CLI_TOKEN" localhost:8020/whoami` → 401).
+A token issued to the `toolmesh` client itself (browser login, `/api/auth/token`) is **also accepted**: that client
+must be allowed to exchange for the target (see below), and the allowed roles end up in its own tokens too.
 
 Keycloak setup (see `keycloak/toolmesh-realm.json`): confidential client `toolmesh` with
 `standard.token.exchange.enabled` (requires Keycloak ≥ 26.2), client `downstream-service` and its
-client role `access`, granted to the users. Dev clients (`toolmesh-cli`, `toolmesh-agent`) have
-`fullScopeAllowed=false` so their own tokens never carry that audience.
+client role `access`, granted to the users. The `toolmesh` client has `fullScopeAllowed=false`, so each exchange
+target's `access` role is added to its scope (`clientScopeMappings`): without it Keycloak answers
+`Requested audience not available`. Adding a new exchange target therefore means a client, its `access` role, the
+role granted to the users, and a `clientScopeMappings` entry for `toolmesh`. The dev clients (`toolmesh-cli`,
+`toolmesh-agent`) have `fullScopeAllowed=false` and no such mapping, so their tokens never carry that audience.
+
+The exchange request is built by `app/auth/exchange.py` and not by python-keycloak, whose `exchange_token` always
+sends an empty `requested_subject` and no `subject_token_type`, both rejected by a standard token exchange.
+
+Keycloak only imports `--import-realm` when the realm does not exist: after changing `toolmesh-realm.json`, recreate
+the container (`docker compose up -d --force-recreate keycloak`) for the change to apply. This resets its dev data.
 
 ## MCP datetime (separate service)
 
