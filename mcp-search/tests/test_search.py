@@ -85,3 +85,10 @@ async def test_endpoint_rejects_requests_without_token(monkeypatch: pytest.Monke
         response = await client.post("/mcp", json={})
 
     assert response.status_code == 401
+
+
+async def test_the_server_announces_its_version() -> None:
+    from app.version import get_version
+
+    async with Client(mcp) as client:
+        assert client.server_info.version == get_version() != "0.0.0"
