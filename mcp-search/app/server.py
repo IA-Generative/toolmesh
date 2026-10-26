@@ -7,9 +7,11 @@ from app.config import Settings
 from app.fetch import fetch_page as _fetch_page
 from app.search import Category, TimeRange
 from app.search import search as _search
+from app.version import get_version
 
 mcp = MCPServer(
     "search",
+    version=get_version(),
     instructions="Search the web, then read the pages worth reading. Results come from a SearXNG meta-search engine.",
 )
 

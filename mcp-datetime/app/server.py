@@ -8,8 +8,11 @@ from zoneinfo import ZoneInfo
 from mcp.server.mcpserver import MCPServer
 
 from app.auth import AuthSettings, BearerAuthMiddleware
+from app.version import get_version
 
-mcp = MCPServer("datetime", instructions="Date, time-zone and period calculations. Dates are ISO 8601.")
+mcp = MCPServer(
+    "datetime", version=get_version(), instructions="Date, time-zone and period calculations. Dates are ISO 8601."
+)
 
 Unit = Literal["days", "weeks", "months", "years"]
 PeriodKind = Literal["week", "month", "quarter", "year"]
