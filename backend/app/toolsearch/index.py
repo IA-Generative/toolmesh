@@ -144,12 +144,15 @@ class ToolIndex:
             ),
         )
 
-    async def index_source(self, source: Source) -> None:
+    async def index_source(self, source: Source, aliases: dict[str, list[str]] | None = None) -> None:
         """Bring the points of the source in line with its tools. Only the tools whose text changed are embedded again;
-        the others just get their payload (version, role, enabled...) refreshed."""
+        the others just get their payload (version, role, enabled...) refreshed. `aliases`: tool name -> queries that
+        users confirmed it answers."""
+        aliases = aliases or {}
         wanted: dict[str, tuple[Tool, str, list[tuple[str, float]], str]] = {}
         for tool in source.tools:
-            text, parts = dense_text(source, tool), sparse_parts(source, tool)
+            text = dense_text(source, tool, aliases.get(tool.name, ()))
+            parts = sparse_parts(source, tool, aliases.get(tool.name, ()))
             wanted[str(UUID(tool.id))] = (tool, text, parts, self._doc_hash(text, parts))
         indexed = await self._indexed(source.id)
 
@@ -187,12 +190,12 @@ class ToolIndex:
                 ],
             )
 
-    async def reindex(self, sources: list[Source]) -> int:
+    async def reindex(self, sources: list[Source], aliases: dict[str, list[str]] | None = None) -> int:
         """Rebuild the whole collection; returns the number of tools indexed."""
         await self.ensure_collection(recreate=True)
         total = 0
         for source in sources:
-            await self.index_source(source)
+            await self.index_source(source, aliases)
             total += len(source.tools)
         return total
 

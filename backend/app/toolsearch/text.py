@@ -5,6 +5,7 @@ cannot match "pets" to it. So the name is split into words (`find pets by status
 (parameter names and descriptions) is searched too: "ville" finds a tool through its `city` parameter."""
 
 import re
+from collections.abc import Sequence
 
 from app.db.models import Source, Tool
 
@@ -29,8 +30,9 @@ def parameters(tool: Tool) -> list[tuple[str, str]]:
     return found
 
 
-def sparse_parts(source: Source, tool: Tool) -> list[tuple[str, float]]:
-    """(text, weight) pairs for the keyword vector: what is in the name counts most, then the tags."""
+def sparse_parts(source: Source, tool: Tool, aliases: Sequence[str] = ()) -> list[tuple[str, float]]:
+    """(text, weight) pairs for the keyword vector: what is in the name counts most, then the tags. `aliases` are the
+    queries that users confirmed this tool answers (see `searchlog.learned_aliases`)."""
     params = parameters(tool)
     route = f"{tool.method} {tool.path}" if tool.method and tool.path else ""
     return [
@@ -40,10 +42,11 @@ def sparse_parts(source: Source, tool: Tool) -> list[tuple[str, float]]:
         (humanize(route), 1.0),
         (" ".join(f"{n} {d}" for n, d in params), 1.0),
         (f"{humanize(source.name)} {source.description or ''}", 1.0),
+        (" ".join(aliases), 2.0),
     ]
 
 
-def dense_text(source: Source, tool: Tool) -> str:
+def dense_text(source: Source, tool: Tool, aliases: Sequence[str] = ()) -> str:
     """The sentence-like text embedded for a tool: short, in natural language, most telling parts first."""
     lines = [f"{humanize(tool.name)}. {tool.description}".strip()]
     if tool.tags:
@@ -54,4 +57,6 @@ def dense_text(source: Source, tool: Tool) -> str:
     if tool.method and tool.path:
         lines.append(f"Endpoint: {tool.method} {humanize(tool.path)}")
     lines.append(f"Source: {humanize(source.name)}" + (f" - {source.description}" if source.description else ""))
+    if aliases:
+        lines.append("Also searched as: " + "; ".join(aliases))
     return "\n".join(lines)

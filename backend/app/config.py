@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     search_name_bonus: float = 0.15
     search_min_dense_score: float | None = None
 
+    # Quality of the search: every search with a query is logged (who, what, what came back) so that users can say
+    # whether it worked and admins can follow the quality. Searches older than this are deleted, except those with an
+    # approved verdict (the dataset). Set `search_log_enabled` to false to log nothing.
+    search_log_enabled: bool = True
+    search_log_retention_days: int = 90
+
     # BFF (browser login): the authorization code flow with PKCE.
     # The browser only ever holds an opaque session cookie; tokens stay in Redis.
     redis_url: str = "redis://localhost:6379/0"

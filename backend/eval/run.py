@@ -21,6 +21,7 @@ from qdrant_client import AsyncQdrantClient
 from app.config import Settings
 from app.db.models import Source, Tool
 from app.toolsearch import index as index_module
+from app.toolsearch.evaluation import score
 from app.toolsearch.index import Filters, ToolIndex
 from app.toolsearch.text import humanize, parameters
 
@@ -93,14 +94,6 @@ DENSE_TEXTS = {
     "name+description+tags+inputs": _with_params,
     "description-first": _description_first,
 }
-
-
-def score(ranking: list[str], expected: list[str]) -> tuple[float, float, float]:
-    if not expected:  # no tool is right: the best answer is none
-        return (float(not ranking),) * 3
-    ranks = [ranking.index(e) + 1 for e in expected if e in ranking]
-    first = min(ranks) if ranks else None
-    return (float(first == 1), float(first is not None and first <= 3), 1 / first if first else 0.0)
 
 
 async def main() -> None:
