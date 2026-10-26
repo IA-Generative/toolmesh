@@ -11,7 +11,9 @@ DEMO_SOURCES = [
     SourceIn(
         name="search-mcp",
         type="mcp",
-        url="https://search.example.org/mcp",
+        url="http://mcp-search:8000/mcp",
+        auth_mode="token_exchange",
+        audience="mcp-search",
         tools=[
             {
                 "name": "web_search",
@@ -20,22 +22,28 @@ DEMO_SOURCES = [
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "query": {"type": "string", "description": "Terms to search for"},
+                        "query": {"type": "string"},
                         "max_results": {"type": "integer", "minimum": 1, "maximum": 20, "default": 5},
-                        "language": {"type": "string", "enum": ["fr", "en"], "default": "fr"},
+                        "language": {"type": "string", "default": "fr", "description": "Language code, e.g. fr or en"},
+                        "time_range": {"type": "string", "enum": ["day", "week", "month", "year"]},
+                        "category": {
+                            "type": "string",
+                            "enum": ["general", "news", "science", "it", "images"],
+                            "default": "general",
+                        },
                     },
                     "required": ["query"],
                 },
             },
             {
                 "name": "fetch_page",
-                "description": "Download a web page and return its readable text.",
+                "description": "Download a web page and return its title and readable text.",
                 "tags": ["web", "texte"],
                 "input_schema": {
                     "type": "object",
                     "properties": {
-                        "url": {"type": "string", "format": "uri", "description": "Page to download"},
-                        "include_links": {"type": "boolean", "default": False},
+                        "url": {"type": "string", "format": "uri"},
+                        "max_chars": {"type": "integer", "minimum": 500, "maximum": 50000, "default": 8000},
                     },
                     "required": ["url"],
                 },
