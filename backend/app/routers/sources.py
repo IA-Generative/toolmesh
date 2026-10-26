@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.discovery import DiscoveryError, discover
 from app.registry import build_source, dedupe_tool_names, is_visible, name_conflicts, sync_tools
 from app.schemas import SourceIn, SourceOut, ToolIn
-from app.toolsearch import forget_source, sync_source
+from app.toolsearch import forget_source, sync_source_with_feedback
 
 router = APIRouter(prefix="/api/sources", tags=["sources"])
 
@@ -64,7 +64,7 @@ async def create_source(payload: SourceIn, user: CurrentUser, db: DB, settings: 
     except IntegrityError as exc:  # lost a race with a concurrent creation
         await db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "Name already taken") from exc
-    await sync_source(settings, source)
+    await sync_source_with_feedback(settings, db, source)
     return SourceOut.model_validate(source)
 
 
@@ -92,7 +92,7 @@ async def refresh_source(source_id: str, user: CurrentUser, db: DB, settings: Ap
     sync_tools(source, await dedupe_tool_names(db, tools, source.name, exclude_source_id=source.id))
     source.version = version or source.version
     await db.commit()
-    await sync_source(settings, source)
+    await sync_source_with_feedback(settings, db, source)
     return SourceOut.model_validate(source)
 
 

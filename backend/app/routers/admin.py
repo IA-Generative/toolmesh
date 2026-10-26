@@ -9,6 +9,7 @@ from app.auth import require_role
 from app.config import Settings, get_settings
 from app.db.models import Source
 from app.db.session import get_db
+from app.searchlog import learned_aliases
 from app.toolsearch import get_index
 from app.toolsearch.embeddings import EmbeddingError
 
@@ -30,7 +31,7 @@ async def reindex(
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "No search index is configured (TOOLMESH_QDRANT_URL)")
     sources = list((await db.scalars(select(Source))).all())
     try:
-        tools = await index.reindex(sources)
+        tools = await index.reindex(sources, await learned_aliases(db))
     except EmbeddingError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
     return ReindexOut(sources=len(sources), tools=tools)
