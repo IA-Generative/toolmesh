@@ -2,14 +2,12 @@ from typing import Annotated, Literal
 
 import httpx2
 from fastapi import APIRouter, Depends, HTTPException, status
-from keycloak import KeycloakOpenID
 from mcp.client import Client
 from mcp.client.streamable_http import streamable_http_client
 from pydantic import BaseModel
 
 from app.auth import CurrentUser
 from app.auth.exchange import exchange_token
-from app.auth.keycloak import get_keycloak_openid
 from app.config import Settings, get_settings
 
 router = APIRouter(prefix="/api/mock", tags=["mock"])
@@ -25,13 +23,12 @@ class McpDatetimeResult(BaseModel):
 async def call_mcp_datetime(
     user: CurrentUser,
     settings: Annotated[Settings, Depends(get_settings)],
-    keycloak_openid: Annotated[KeycloakOpenID, Depends(get_keycloak_openid)],
     date: str = "2026-10-13",
     kind: Literal["week", "month", "quarter", "year"] = "quarter",
 ) -> McpDatetimeResult:
     """Mock tool invocation: exchange the caller's token, then call `period_bounds` on the MCP server with it."""
     assert user.token is not None
-    token = await exchange_token(keycloak_openid, user.token, settings.mcp_datetime_audience)
+    token = await exchange_token(settings, user.token, settings.mcp_datetime_audience)
     http_client = httpx2.AsyncClient(headers={"Authorization": f"Bearer {token}"})
     try:
         async with (

@@ -12,7 +12,6 @@ import httpx
 import httpx2
 import yaml
 from fastapi import status
-from keycloak import KeycloakOpenID
 from mcp.client import Client
 from mcp.client.streamable_http import streamable_http_client
 
@@ -51,12 +50,12 @@ async def check_url(url: str, settings: Settings) -> None:
             raise DiscoveryError(f"Address not allowed: {parts.hostname}", status.HTTP_422_UNPROCESSABLE_CONTENT)
 
 
-async def _auth_headers(source: SourceIn, subject_token: str | None, keycloak: KeycloakOpenID) -> dict[str, str]:
+async def _auth_headers(source: SourceIn, subject_token: str | None, settings: Settings) -> dict[str, str]:
     if source.auth_mode != "token_exchange":
         return {}
     if not subject_token or not source.audience:
         raise DiscoveryError("Token exchange needs a user token and an audience", status.HTTP_422_UNPROCESSABLE_CONTENT)
-    return {"Authorization": f"Bearer {await exchange_token(keycloak, subject_token, source.audience)}"}
+    return {"Authorization": f"Bearer {await exchange_token(settings, subject_token, source.audience)}"}
 
 
 # --- Glob filter on "METHOD /path" ---------------------------------------------------------------------------------
@@ -184,8 +183,8 @@ async def fetch_spec(url: str, headers: dict[str, str], settings: Settings) -> d
     return spec
 
 
-async def discover_api(source: SourceIn, subject_token: str | None, keycloak: KeycloakOpenID, settings: Settings):
-    headers = await _auth_headers(source, subject_token, keycloak)
+async def discover_api(source: SourceIn, subject_token: str | None, settings: Settings):
+    headers = await _auth_headers(source, subject_token, settings)
     spec = await fetch_spec(source.openapi_url or "", headers, settings)
     return tools_from_spec(spec, source.endpoint_include, source.endpoint_exclude)
 
@@ -193,9 +192,9 @@ async def discover_api(source: SourceIn, subject_token: str | None, keycloak: Ke
 # --- MCP -----------------------------------------------------------------------------------------------------------
 
 
-async def discover_mcp(source: SourceIn, subject_token: str | None, keycloak: KeycloakOpenID, settings: Settings):
+async def discover_mcp(source: SourceIn, subject_token: str | None, settings: Settings):
     await check_url(source.url or "", settings)
-    headers = await _auth_headers(source, subject_token, keycloak)
+    headers = await _auth_headers(source, subject_token, settings)
     tools: list[ToolIn] = []
     try:
         async with asyncio.timeout(settings.discovery_timeout_seconds):
@@ -221,11 +220,11 @@ async def discover_mcp(source: SourceIn, subject_token: str | None, keycloak: Ke
     return tools
 
 
-async def discover(source: SourceIn, subject_token: str | None, keycloak: KeycloakOpenID, settings: Settings):
+async def discover(source: SourceIn, subject_token: str | None, settings: Settings):
     if source.type == "mcp":
-        tools = await discover_mcp(source, subject_token, keycloak, settings)
+        tools = await discover_mcp(source, subject_token, settings)
     elif source.type == "api":
-        tools = await discover_api(source, subject_token, keycloak, settings)
+        tools = await discover_api(source, subject_token, settings)
     else:
         raise DiscoveryError("A skill has nothing to discover", status.HTTP_422_UNPROCESSABLE_CONTENT)
     if not tools:

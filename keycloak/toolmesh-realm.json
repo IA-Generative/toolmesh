@@ -232,5 +232,23 @@
         "admin"
       ]
     }
-  ]
+  ],
+  "clientScopeMappings": {
+    "downstream-service": [
+      {
+        "client": "toolmesh",
+        "roles": [
+          "access"
+        ]
+      }
+    ],
+    "mcp-datetime": [
+      {
+        "client": "toolmesh",
+        "roles": [
+          "access"
+        ]
+      }
+    ]
+  }
 }
