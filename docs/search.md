@@ -60,12 +60,13 @@ The search is only as good as the queries it was tested on, so real ones are col
 2. **The user evaluates the search** in the app: "Cette recherche a-t-elle trouvé ce que vous cherchiez ?" → yes (and which
    tool) or no (and which tool it should have been, or none, i.e. the catalogue has nothing for this question), with an
    optional comment (`POST /api/search/{search_id}/feedback`). Opening a result is recorded as a click
-   (`POST /api/search/{search_id}/click`, rank included).
+   (`POST /api/search/{search_id}/click`, rank included). Tools are always referred to by **id** (the name of a tool
+   is only unique within its source), in the search results, the clicks and the verdicts.
 3. **An admin reviews each verdict** (dashboard, "Retours à examiner"): approve it (possibly correcting the expected
    tool) or reject it. Nothing a user says is used before that, so a mistake or an attempt to push a tool is not learned.
 4. **An approved verdict does two things**:
-   - it joins the **dataset** (`GET /api/admin/search/dataset`, same format as `backend/eval/queries.json`: replay it
-     with `eval.run`, or keep it as the test set for the next model);
+   - it joins the **dataset** (`GET /api/admin/search/dataset`, same format as `backend/eval/queries.json`, except that the
+     expected tools are ids; `eval.run` accepts names or ids in `queries.json`, so it can be replayed there or kept as the test set for the next model);
    - the query becomes an **alias of the expected tool** (at most 10 per tool, the newest): it is added to the text of
      the tool, in the keyword vector (weight 2) and in the dense text ("Also searched as: …"), and that tool alone is
      re-embedded. The next person asking in the same words finds it, whatever the model thinks. Rejecting or reopening

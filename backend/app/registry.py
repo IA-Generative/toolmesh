@@ -13,6 +13,7 @@ def is_visible(source: Source, user: User) -> bool:
 
 def tool_out(source: Source, tool: Tool) -> ToolOut:
     return ToolOut(
+        id=tool.id,
         name=tool.name,
         description=tool.description,
         source=source.name,
@@ -35,14 +36,13 @@ async def visible_tools(db: AsyncSession, user: User) -> list[ToolOut]:
 
 
 async def name_conflicts(db: AsyncSession, payload: SourceIn) -> list[str]:
-    """Names of the source and tools in `payload` that are already taken."""
-    tool_names = [t.name for t in payload.tools] or ([payload.name] if payload.type == "skill" else [])
+    """What in `payload` cannot be registered: a source name already taken, a tool declared twice. Tool names only
+    have to be unique within their source."""
     taken = []
     if await db.scalar(select(Source.id).where(Source.name == payload.name)):
         taken.append(f"source '{payload.name}'")
-    for name in tool_names:
-        if await db.scalar(select(Tool.id).where(Tool.name == name)):
-            taken.append(f"tool '{name}'")
+    names = [t.name for t in payload.tools]
+    taken.extend(f"tool '{n}' declared twice" for n in dict.fromkeys(n for n in names if names.count(n) > 1))
     return taken
 
 
@@ -59,22 +59,6 @@ def build_source(payload: SourceIn, created_by: str) -> Source:
     return source
 
 
-async def dedupe_tool_names(
-    db: AsyncSession, tools: list[ToolIn], source_name: str, exclude_source_id: str | None = None
-) -> list[ToolIn]:
-    """Discovered tool names must be unique across sources: a clash is renamed `<source>.<tool>`."""
-    query = select(Tool.name).where(Tool.name.in_([t.name for t in tools]))
-    if exclude_source_id:
-        query = query.where(Tool.source_id != exclude_source_id)
-    taken = set((await db.scalars(query)).all())
-    return [
-        t.model_copy(update={"name": f"{source_name}.{t.name}"[:100], "remote_name": t.remote_name or t.name})
-        if t.name in taken
-        else t
-        for t in tools
-    ]
-
-
 def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
     """Make the source's tools match `discovered` by name, keeping the `enabled` flag of those that stay."""
     wanted = {t.name: t for t in discovered}
@@ -85,7 +69,6 @@ def sync_tools(source: Source, discovered: list[ToolIn]) -> None:
         incoming = wanted.pop(tool.name)
         tool.description, tool.tags, tool.method = incoming.description, incoming.tags, incoming.method
         tool.path, tool.input_schema = incoming.path, incoming.input_schema
-        tool.remote_name = incoming.remote_name
     source.tools.extend(Tool(**t.model_dump()) for t in wanted.values())
 
 

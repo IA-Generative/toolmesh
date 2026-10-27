@@ -6,8 +6,8 @@ const USER = { sub: "1", username: "user", email: "u@x.fr", roles: ["user"] };
 const TOOLS = {
   user: "user", roles: ["user"],
   tools: [
-    { name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null },
-    { name: "calendar", description: "Agenda partagé", source: "api", type: "api", required_role: "user" },
+    { id: "t1", name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null },
+    { id: "t2", name: "calendar", description: "Agenda partagé", source: "api", type: "api", required_role: "user" },
   ],
 };
 const asUserWithTools = async (page) => {

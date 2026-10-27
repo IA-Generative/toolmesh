@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import SearchClick, SearchEvent, SearchFeedback, Tool
+from app.db.models import SearchClick, SearchEvent, SearchFeedback, Source, Tool
 
 MAX_ALIASES_PER_TOOL = 10
 MAX_EVENTS_IN_STATS = 50_000
@@ -38,6 +38,22 @@ async def record_search(
     return event.id
 
 
+async def tool_refs(db: AsyncSession, ids: set[str] | list[str]) -> dict[str, dict[str, str | None]]:
+    """Tool id -> `{id, name, source}` to show it; a tool deleted since is only known by its id."""
+    ids = set(ids)
+    found = {}
+    if ids:
+        rows = await db.execute(select(Tool.id, Tool.name, Source.name).join(Source).where(Tool.id.in_(ids)))
+        found = {i: {"id": i, "name": name, "source": source} for i, name, source in rows.all()}
+    return {i: found.get(i, {"id": i, "name": i[:8], "source": None}) for i in ids}
+
+
+async def _check_known(db: AsyncSession, ids: list[str]) -> None:
+    known = set((await db.scalars(select(Tool.id).where(Tool.id.in_(ids)))).all()) if ids else set()
+    if unknown := [i for i in ids if i not in known]:
+        raise FeedbackError(f"Unknown tool: {', '.join(unknown)}")
+
+
 async def _own_event(db: AsyncSession, search_id: str, user_sub: str) -> SearchEvent:
     event = await db.get(SearchEvent, search_id)
     if event is None or event.user_sub != user_sub:  # one only evaluates one's own searches
@@ -45,9 +61,9 @@ async def _own_event(db: AsyncSession, search_id: str, user_sub: str) -> SearchE
     return event
 
 
-async def record_click(db: AsyncSession, search_id: str, user_sub: str, tool: str, rank: int) -> None:
+async def record_click(db: AsyncSession, search_id: str, user_sub: str, tool_id: str, rank: int) -> None:
     await _own_event(db, search_id, user_sub)
-    db.add(SearchClick(search_id=search_id, tool=tool, rank=rank))
+    db.add(SearchClick(search_id=search_id, tool=tool_id, rank=rank))
     await db.commit()
 
 
@@ -59,9 +75,7 @@ async def submit_feedback(
     expected = list(dict.fromkeys(expected))
     if verdict == "found" and not expected:
         raise FeedbackError("Say which tool was the right one")
-    known = set((await db.scalars(select(Tool.name).where(Tool.name.in_(expected)))).all()) if expected else set()
-    if unknown := [name for name in expected if name not in known]:
-        raise FeedbackError(f"Unknown tool: {', '.join(unknown)}")
+    await _check_known(db, expected)
     feedback = await db.scalar(
         select(SearchFeedback).where(SearchFeedback.search_id == search_id, SearchFeedback.user_sub == user_sub)
     )
@@ -78,16 +92,14 @@ async def submit_feedback(
 async def review_feedback(
     db: AsyncSession, feedback_id: str, reviewer: str, status: str, expected: list[str] | None
 ) -> tuple[SearchFeedback, set[str]]:
-    """Approve or reject a verdict (an admin may also correct the expected tools). Returns it and the names of the
+    """Approve or reject a verdict (an admin may also correct the expected tools). Returns it and the ids of the
     tools whose learned aliases may have changed."""
     feedback = await db.get(SearchFeedback, feedback_id)
     if feedback is None:
         raise FeedbackError("Feedback not found", 404)
     touched = set(feedback.expected) if feedback.status == "approved" else set()
     if expected is not None:
-        known = set((await db.scalars(select(Tool.name).where(Tool.name.in_(expected)))).all()) if expected else set()
-        if unknown := [name for name in expected if name not in known]:
-            raise FeedbackError(f"Unknown tool: {', '.join(unknown)}")
+        await _check_known(db, expected)
         feedback.expected = list(dict.fromkeys(expected))
     if status == "approved" and feedback.verdict == "found" and not feedback.expected:
         raise FeedbackError("A verdict that found a tool needs the expected tool")
@@ -112,7 +124,7 @@ async def approved_rows(db: AsyncSession) -> list[tuple[SearchFeedback, SearchEv
 
 
 async def learned_aliases(db: AsyncSession) -> dict[str, list[str]]:
-    """Tool name -> the queries users confirmed it answers (approved verdicts only; the newest, at most
+    """Tool id -> the queries users confirmed it answers (approved verdicts only; the newest, at most
     `MAX_ALIASES_PER_TOOL`). They are indexed with the tool, so that the next person asking the same way finds it."""
     aliases: dict[str, list[str]] = {}
     for feedback, event in await approved_rows(db):
@@ -211,6 +223,9 @@ async def stats(db: AsyncSession, days: int) -> dict[str, Any]:
         select(func.count()).select_from(SearchFeedback).where(SearchFeedback.status == "approved")
     )
 
+    top_missed, top_chosen = missed.most_common(10), chosen.most_common(10)
+    refs = await tool_refs(db, {i for (_, t), _ in top_missed for i in t} | {t for t, _ in top_chosen})
+
     def share(part: int, whole: int) -> float | None:
         return part / whole if whole else None
 
@@ -239,6 +254,6 @@ async def stats(db: AsyncSession, days: int) -> dict[str, Any]:
             for day, c in sorted(per_day.items())
         ],
         "top_zero_result_queries": [{"query": q, "count": n} for q, n in zero.most_common(10)],
-        "top_missed": [{"query": q, "expected": list(t), "count": n} for (q, t), n in missed.most_common(10)],
-        "tools_chosen": [{"tool": t, "count": n} for t, n in chosen.most_common(10)],
+        "top_missed": [{"query": q, "expected": [refs[i] for i in t], "count": n} for (q, t), n in top_missed],
+        "tools_chosen": [{"tool": refs[t], "count": n} for t, n in top_chosen],
     }

@@ -11,7 +11,7 @@ from app.config import Settings, get_settings
 from app.db.models import Source
 from app.db.session import get_db
 from app.discovery import DiscoveryError, discover
-from app.registry import build_source, dedupe_tool_names, is_visible, name_conflicts, sync_tools
+from app.registry import build_source, is_visible, name_conflicts, sync_tools
 from app.schemas import SourceIn, SourceOut, ToolIn
 from app.toolsearch import forget_source, sync_source_with_feedback
 
@@ -41,10 +41,10 @@ async def _get_visible(db: AsyncSession, source_id: str, user: CurrentUser) -> S
 
 
 @router.post("/discover")
-async def discover_tools(payload: SourceIn, user: CurrentUser, db: DB, settings: AppSettings) -> DiscoveredTools:
+async def discover_tools(payload: SourceIn, user: CurrentUser, settings: AppSettings) -> DiscoveredTools:
     """Preview the tools of an MCP server or API without registering anything."""
     tools, version = await _discover(payload, user, settings)
-    return DiscoveredTools(tools=await dedupe_tool_names(db, tools, payload.name), version=version)
+    return DiscoveredTools(tools=tools, version=version)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -54,9 +54,7 @@ async def create_source(payload: SourceIn, user: CurrentUser, db: DB, settings: 
         raise HTTPException(status.HTTP_409_CONFLICT, f"Already exists: {', '.join(taken)}")
     if payload.type != "skill" and not payload.tools:
         tools, version = await _discover(payload, user, settings)
-        payload = payload.model_copy(
-            update={"tools": await dedupe_tool_names(db, tools, payload.name), "version": payload.version or version}
-        )
+        payload = payload.model_copy(update={"tools": tools, "version": payload.version or version})
     source = build_source(payload, created_by=user.sub)
     db.add(source)
     try:
@@ -89,7 +87,7 @@ async def refresh_source(source_id: str, user: CurrentUser, db: DB, settings: Ap
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A skill has nothing to discover")
     stored = SourceIn.model_validate(SourceOut.model_validate(source).model_dump(exclude={"tools"}))
     tools, version = await _discover(stored, user, settings)
-    sync_tools(source, await dedupe_tool_names(db, tools, source.name, exclude_source_id=source.id))
+    sync_tools(source, tools)
     source.version = version or source.version
     await db.commit()
     await sync_source_with_feedback(settings, db, source)

@@ -167,7 +167,8 @@ async def test_create_without_tools_discovers_them(client: AsyncClient, found: l
 
     assert response.status_code == 201
     assert [t["name"] for t in response.json()["tools"]] == ["list_things"]
-    assert (await client.get("/api/me/tools/list_things", headers=user())).status_code == 200
+    tool_id = response.json()["tools"][0]["id"]
+    assert (await client.get(f"/api/me/tools/{tool_id}", headers=user())).status_code == 200
 
 
 async def test_discovery_failures_are_reported(client: AsyncClient, found: list[ToolIn]) -> None:
@@ -179,16 +180,21 @@ async def test_discovery_failures_are_reported(client: AsyncClient, found: list[
     assert "orders-api" not in {s["name"] for s in (await client.get("/api/sources", headers=user())).json()}
 
 
-async def test_discovered_name_clashes_are_prefixed_by_the_source(client: AsyncClient, found: list[ToolIn]) -> None:
-    found[:] = [ToolIn(name="web_search"), ToolIn(name="fresh")]  # `web_search` belongs to the test search-mcp
+async def test_two_sources_may_have_a_tool_of_the_same_name(client: AsyncClient, found: list[ToolIn]) -> None:
+    found[:] = [ToolIn(name="web_search"), ToolIn(name="fresh")]  # `web_search` also belongs to the test search-mcp
 
     response = await create(client, declared_none())
 
-    assert sorted(t["name"] for t in response.json()["tools"]) == ["fresh", "orders-api.web_search"]
+    assert sorted(t["name"] for t in response.json()["tools"]) == ["fresh", "web_search"]
+    tools = (await client.get("/api/me/tools", headers=user())).json()["tools"]
+    same = [t for t in tools if t["name"] == "web_search"]
+    assert sorted(t["source"] for t in same) == ["orders-api", "search-mcp"]
+    assert len({t["id"] for t in same}) == 2
 
 
 async def test_refresh_adds_removes_and_updates_tools(client: AsyncClient, found: list[ToolIn]) -> None:
-    source_id = (await create(client, declared_none())).json()["id"]
+    created = (await create(client, declared_none())).json()
+    source_id, kept_id = created["id"], created["tools"][0]["id"]
     found[:] = [ToolIn(name="list_things", description="Updated"), ToolIn(name="new_thing")]
 
     response = await client.post(f"/api/sources/{source_id}/refresh", headers=user())
@@ -196,6 +202,7 @@ async def test_refresh_adds_removes_and_updates_tools(client: AsyncClient, found
     tools = {t["name"]: t for t in response.json()["tools"]}
     assert set(tools) == {"list_things", "new_thing"}
     assert tools["list_things"]["description"] == "Updated"
+    assert tools["list_things"]["id"] == kept_id  # a tool keeps its id across refreshes
 
 
 async def test_refresh_keeps_a_disabled_tool_disabled(
@@ -251,7 +258,8 @@ async def test_the_discovered_version_is_stored_and_shown(client: AsyncClient, f
     created = await create(client, declared_none())
 
     assert created.json()["version"] == "1.2.0"
-    tool = (await client.get("/api/me/tools/list_things", headers=user())).json()
+    tool_id = created.json()["tools"][0]["id"]
+    tool = (await client.get(f"/api/me/tools/{tool_id}", headers=user())).json()
     assert tool["source_version"] == "1.2.0"
 
 

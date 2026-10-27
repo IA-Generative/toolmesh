@@ -17,6 +17,8 @@ import "./SearchQuality.css";
 const PERIODS = [7, 30, 90];
 const MODE_LABELS = { hybrid: "mots-clés + sens", keyword: "mots-clés", dense: "sens", basic: "registre" };
 const pct = (v) => (v == null ? "—" : `${Math.round(v * 100)} %`);
+// Le nom d'un outil n'est unique que dans sa source : on la montre, sauf pour un outil supprimé depuis.
+const toolLabel = (t) => (t.source ? `${t.source} / ${t.name}` : `${t.name} (supprimé)`);
 const num = (v, digits = 2) => (v == null ? "—" : v.toFixed(digits));
 
 function ReviewItem({ item, tools, onReviewed }) {
@@ -48,7 +50,7 @@ function ReviewItem({ item, tools, onReviewed }) {
         {item.comment && <> — {item.comment}</>}
       </p>
       <p className="fr-text--sm fr-mb-0">
-        Résultats : {item.results.length ? item.results.map((r) => <code key={r} className="fr-mr-1w">{r}</code>) : "aucun"}
+        Résultats : {item.results.length ? item.results.map((r) => <code key={r.id} className="fr-mr-1w">{toolLabel(r)}</code>) : "aucun"}
       </p>
       {error && <Alert className="fr-mt-1w" severity="error" small description={error} />}
       <div className="review__actions">
@@ -57,7 +59,7 @@ function ReviewItem({ item, tools, onReviewed }) {
           nativeSelectProps={{ value: expected, onChange: (e) => setExpected(e.target.value) }}
         >
           <option value="">Aucun outil du catalogue</option>
-          {tools.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+          {tools.map((t) => <option key={t.id} value={t.id}>{toolLabel(t)}</option>)}
         </Select>
         <Button size="small" iconId="fr-icon-check-line" onClick={() => act("approved")} disabled={busy || (item.verdict === "found" && !expected)}>
           Approuver
@@ -215,7 +217,7 @@ export default function SearchQuality() {
             <section className="viz-panel">
               <BarList
                 title="Outils les plus choisis"
-                rows={stats.tools_chosen.map((r) => ({ label: r.tool, value: r.count }))}
+                rows={stats.tools_chosen.map((r) => ({ label: toolLabel(r.tool), value: r.count }))}
                 empty="Aucun outil choisi pour l'instant."
               />
             </section>
@@ -223,7 +225,7 @@ export default function SearchQuality() {
               <BarList
                 title="Requêtes jugées non satisfaisantes"
                 rows={stats.top_missed.map((r) => ({
-                  label: r.expected.length ? `${r.query} → ${r.expected.join(", ")}` : r.query,
+                  label: r.expected.length ? `${r.query} → ${r.expected.map(toolLabel).join(", ")}` : r.query,
                   value: r.count,
                 }))}
                 empty="Aucun retour négatif."

@@ -138,7 +138,7 @@ async def test_skills_cannot_be_run_yet() -> None:
 # --- Route ---------------------------------------------------------------------------------------------------------
 
 
-async def test_call_route_runs_the_tool(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_call_route_runs_the_tool(client: AsyncClient, monkeypatch: pytest.MonkeyPatch, tool_id) -> None:
     seen: dict[str, Any] = {}
 
     async def fake_execute(
@@ -151,7 +151,7 @@ async def test_call_route_runs_the_tool(client: AsyncClient, monkeypatch: pytest
     token = make_token(["user"])
 
     response = await client.post(
-        "/api/me/tools/web_search/call", json={"arguments": {"query": "x"}}, headers=auth(token)
+        f"/api/me/tools/{await tool_id('web_search')}/call", json={"arguments": {"query": "x"}}, headers=auth(token)
     )
 
     assert response.status_code == 200
@@ -159,30 +159,36 @@ async def test_call_route_runs_the_tool(client: AsyncClient, monkeypatch: pytest
     assert seen == {"source": "search-mcp", "tool": "web_search", "arguments": {"query": "x"}, "token": token}
 
 
-async def test_call_route_reports_execution_errors(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_call_route_reports_execution_errors(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch, tool_id
+) -> None:
     async def failing(*_: Any) -> dict:
         raise ExecutionError("boom", 502)
 
     monkeypatch.setattr("app.routers.tools.execute", failing)
 
-    response = await client.post("/api/me/tools/web_search/call", json={}, headers=auth(make_token(["user"])))
+    response = await client.post(
+        f"/api/me/tools/{await tool_id('web_search')}/call", json={}, headers=auth(make_token(["user"]))
+    )
 
     assert (response.status_code, response.json()["detail"]) == (502, "boom")
 
 
-async def test_call_route_hides_unknown_and_restricted_tools(client: AsyncClient) -> None:
+async def test_call_route_hides_unknown_and_restricted_tools(client: AsyncClient, tool_id) -> None:
     user = auth(make_token(["user"]))
 
     assert (await client.post("/api/me/tools/nope/call", json={}, headers=user)).status_code == 404
     assert (
-        await client.post("/api/me/tools/query_database/call", json={}, headers=user)
+        await client.post(f"/api/me/tools/{await tool_id('query_database')}/call", json={}, headers=user)
     ).status_code == 404  # admin only
-    assert (await client.post("/api/me/tools/web_search/call", json={})).status_code == 401
+    assert (await client.post(f"/api/me/tools/{await tool_id('web_search')}/call", json={})).status_code == 401
 
 
-async def test_a_skill_call_is_not_implemented(client: AsyncClient) -> None:
+async def test_a_skill_call_is_not_implemented(client: AsyncClient, tool_id) -> None:
     response = await client.post(
-        "/api/me/tools/summarize/call", json={"arguments": {"text": "x"}}, headers=auth(make_token(["user"]))
+        f"/api/me/tools/{await tool_id('summarize')}/call",
+        json={"arguments": {"text": "x"}},
+        headers=auth(make_token(["user"])),
     )
 
     assert response.status_code == 501

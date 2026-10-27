@@ -10,7 +10,8 @@ const listeners = new Set();
 function load() {
   try {
     const parsed = JSON.parse(localStorage.getItem(KEY));
-    return Array.isArray(parsed) ? parsed : [];
+    // Les entrées d'avant les ids (sans `toolId`) ne mènent plus à un outil : on les oublie.
+    return Array.isArray(parsed) ? parsed.filter((e) => e.toolId) : [];
   } catch {
     return [];
   }
@@ -28,7 +29,7 @@ function commit(next) {
 
 const newId = () => globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 
-// entry : { tool, type, args, model?, ok, ms }
+// entry : { toolId, tool (nom), type, args, model?, ok, ms }
 export function addHistory(entry) {
   commit([{ ...entry, id: newId(), at: Date.now() }, ...entries].slice(0, MAX));
 }

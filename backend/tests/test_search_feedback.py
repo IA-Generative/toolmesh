@@ -12,7 +12,7 @@ from app.db.models import SearchEvent, SearchFeedback
 from app.main import app
 from app.toolsearch import Filters
 from tests.test_tools import auth, make_token
-from tests.test_toolsearch import index_for, load_sources
+from tests.test_toolsearch import found, index_for, load_sources
 
 ALICE = auth(make_token(["user"], sub="alice"))
 BOB = auth(make_token(["user"], sub="bob"))
@@ -25,8 +25,17 @@ async def search(client: AsyncClient, q: str = "weather", headers: dict[str, str
     return response.json()
 
 
+async def ids_of(client: AsyncClient) -> dict[str, str]:
+    """Tool name -> id, for the tools of the test registry (their names are unique there)."""
+    tools = (await client.get("/api/me/tools", headers=ADMIN)).json()["tools"]
+    return {t["name"]: t["id"] for t in tools}
+
+
 async def verdict(client: AsyncClient, search_id: str, headers: dict[str, str] = ALICE, **body: Any):
+    """Post a verdict; `expected` holds tool names, turned into ids (an unknown name is sent as it is)."""
+    ids = await ids_of(client)
     body = {"verdict": "found", "expected": ["get_weather"]} | body
+    body["expected"] = [ids.get(n, n) for n in body["expected"]]
     return await client.post(f"/api/search/{search_id}/feedback", json=body, headers=headers)
 
 
@@ -35,6 +44,9 @@ async def pending(client: AsyncClient) -> list[dict]:
 
 
 async def approve(client: AsyncClient, feedback_id: str, **body: Any):
+    ids = await ids_of(client)
+    if "expected" in body:
+        body["expected"] = [ids.get(n, n) for n in body["expected"]]
     return await client.patch(
         f"/api/admin/search/feedback/{feedback_id}", json={"status": "approved"} | body, headers=ADMIN
     )
@@ -52,7 +64,7 @@ async def test_a_search_with_a_query_is_logged_and_gets_an_id(
     async with session_factory() as db:
         event = await db.get(SearchEvent, result["search_id"])
     assert (event.user_sub, event.query, event.mode) == ("alice", "weather", "basic")
-    assert event.filters == {"type": "api"} and event.results == [t["name"] for t in result["tools"]]
+    assert event.filters == {"type": "api"} and event.results == [t["id"] for t in result["tools"]]
 
 
 async def test_filters_alone_and_a_disabled_log_leave_no_trace(client: AsyncClient) -> None:
@@ -67,21 +79,22 @@ async def test_filters_alone_and_a_disabled_log_leave_no_trace(client: AsyncClie
 
 async def test_a_click_is_recorded_for_the_owner_of_the_search_only(client: AsyncClient) -> None:
     search_id = (await search(client))["search_id"]
-    click = {"tool": "get_weather", "rank": 1}
+    click = {"tool_id": (await ids_of(client))["get_weather"], "rank": 1}
 
     assert (await client.post(f"/api/search/{search_id}/click", json=click, headers=ALICE)).status_code == 204
     assert (await client.post(f"/api/search/{search_id}/click", json=click, headers=BOB)).status_code == 404
     assert (await client.post("/api/search/nope/click", json=click, headers=ALICE)).status_code == 404
     assert (
-        await client.post(f"/api/search/{search_id}/click", json={"tool": "x", "rank": 0}, headers=ALICE)
+        await client.post(f"/api/search/{search_id}/click", json={"tool_id": "x", "rank": 0}, headers=ALICE)
     ).status_code == 422
 
 
 async def test_a_verdict_names_a_known_tool(client: AsyncClient) -> None:
     search_id = (await search(client))["search_id"]
+    ids = await ids_of(client)
 
     ok = await verdict(client, search_id)
-    assert (ok.status_code, ok.json()["status"], ok.json()["expected"]) == (201, "pending", ["get_weather"])
+    assert (ok.status_code, ok.json()["status"], ok.json()["expected"]) == (201, "pending", [ids["get_weather"]])
     assert (await verdict(client, search_id, expected=[])).status_code == 422  # "found" needs the tool
     assert (await verdict(client, search_id, expected=["nope"])).status_code == 422
     assert (await verdict(client, search_id, headers=BOB)).status_code == 404  # not their search
@@ -94,7 +107,7 @@ async def test_a_pending_verdict_is_replaced_but_a_reviewed_one_is_final(client:
     first = (await verdict(client, search_id)).json()
     second = (await verdict(client, search_id, expected=["get_forecast"])).json()
 
-    assert second["id"] == first["id"] and second["expected"] == ["get_forecast"]
+    assert second["id"] == first["id"] and second["expected"] == [(await ids_of(client))["get_forecast"]]
     await approve(client, first["id"])
     assert (await verdict(client, search_id)).status_code == 409
 
@@ -118,17 +131,20 @@ async def test_the_admin_reviews_the_verdicts(client: AsyncClient) -> None:
     search_id = (await search(client, "weather city"))["search_id"]
     await verdict(client, search_id, comment="le premier résultat")
 
+    ids = await ids_of(client)
     items = await pending(client)
     assert len(items) == 1
     assert (items[0]["query"], items[0]["verdict"], items[0]["expected"], items[0]["comment"]) == (
         "weather city",
         "found",
-        ["get_weather"],
+        [ids["get_weather"]],
         "le premier résultat",
     )
-    assert "get_weather" in items[0]["results"]
+    weather = next(r for r in items[0]["results"] if r["id"] == ids["get_weather"])
+    assert (weather["name"], weather["source"]) == ("get_weather", "weather-api")
 
-    assert (await approve(client, items[0]["id"], expected=["get_forecast"])).json()["expected"] == ["get_forecast"]
+    reviewed = await approve(client, items[0]["id"], expected=["get_forecast"])
+    assert reviewed.json()["expected"] == [ids["get_forecast"]]
     assert await pending(client) == []
     assert (await approve(client, items[0]["id"], expected=["nope"])).status_code == 422
     assert (
@@ -151,9 +167,10 @@ async def test_the_dataset_holds_the_approved_verdicts_in_the_eval_format(client
 
     data = (await client.get("/api/admin/search/dataset", headers=ADMIN)).json()
 
+    weather = (await ids_of(client))["get_weather"]
     assert sorted(data, key=lambda i: i["query"]) == [
         {"query": "tarte aux pommes", "expect": [], "category": "no-answer"},
-        {"query": "weather city", "expect": ["get_weather"], "category": "feedback", "filters": {"type": "api"}},
+        {"query": "weather city", "expect": [weather], "category": "feedback", "filters": {"type": "api"}},
     ]
 
 
@@ -186,9 +203,36 @@ async def test_approved_queries_become_aliases_of_the_tool(
     async with session_factory() as db:
         aliases = await searchlog.learned_aliases(db)
 
-    assert len(aliases["get_weather"]) == searchlog.MAX_ALIASES_PER_TOOL
-    assert aliases["get_weather"][0] == "zebra 11"  # the newest first
-    assert "rejected phrase" not in aliases["get_weather"]
+    learned = aliases[(await ids_of(client))["get_weather"]]
+    assert len(learned) == searchlog.MAX_ALIASES_PER_TOOL
+    assert learned[0] == "zebra 11"  # the newest first
+    assert "rejected phrase" not in learned
+
+
+async def test_a_verdict_targets_one_of_two_tools_sharing_a_name(
+    client: AsyncClient, session_factory: async_sessionmaker[AsyncSession], tool_id
+) -> None:
+    twin = {
+        "name": "weather-twin",
+        "type": "api",
+        "url": "http://w2.test",
+        "openapi_url": "http://w2.test/o.json",
+        "tools": [{"name": "get_weather", "description": "Weather, the other one", "method": "GET", "path": "/w"}],
+    }
+    created = await client.post("/api/sources", json=twin, headers=ALICE)
+    twin_id = created.json()["tools"][0]["id"]
+    original_id = await tool_id("get_weather", "weather-api")
+    assert twin_id != original_id
+
+    sid = (await search(client, "weather twin"))["search_id"]
+    saved = await client.post(
+        f"/api/search/{sid}/feedback", json={"verdict": "found", "expected": [twin_id]}, headers=ALICE
+    )
+    await approve(client, saved.json()["id"])
+
+    async with session_factory() as db:
+        aliases = await searchlog.learned_aliases(db)
+    assert aliases == {twin_id: ["weather twin"]}
 
 
 async def test_approving_a_verdict_teaches_the_index(
@@ -198,16 +242,16 @@ async def test_approving_a_verdict_teaches_the_index(
     await index.reindex(await load_sources(session_factory))
     for target in ("app.toolsearch.get_index", "app.routers.search_feedback.get_index"):
         monkeypatch.setattr(target, lambda _: index)
-    assert await index.search("zebra crossing", ["user"], Filters(), 5) == []
+    assert await found(index, "zebra crossing", ["user"], Filters(), 5) == []
 
     sid = (await search(client, "zebra crossing"))["search_id"]
     await verdict(client, sid, expected=["get_weather"])
     item = (await pending(client))[0]
     await approve(client, item["id"])
 
-    assert (await index.search("zebra crossing", ["user"], Filters(), 5))[0] == "get_weather"
+    assert (await found(index, "zebra crossing", ["user"], Filters(), 5))[0] == "get_weather"
     await client.patch(f"/api/admin/search/feedback/{item['id']}", json={"status": "rejected"}, headers=ADMIN)
-    assert await index.search("zebra crossing", ["user"], Filters(), 5) == []  # un-taught
+    assert await found(index, "zebra crossing", ["user"], Filters(), 5) == []  # un-taught
 
 
 async def test_the_evaluation_ignores_what_the_dataset_taught(
@@ -238,9 +282,10 @@ async def test_the_evaluation_ignores_what_the_dataset_taught(
 
 
 async def test_the_statistics_summarise_searches_clicks_and_verdicts(client: AsyncClient) -> None:
+    ids = await ids_of(client)
     hit = (await search(client, "weather city"))["search_id"]
-    await client.post(f"/api/search/{hit}/click", json={"tool": "get_weather", "rank": 2}, headers=ALICE)
-    await client.post(f"/api/search/{hit}/click", json={"tool": "get_forecast", "rank": 4}, headers=ALICE)
+    await client.post(f"/api/search/{hit}/click", json={"tool_id": ids["get_weather"], "rank": 2}, headers=ALICE)
+    await client.post(f"/api/search/{hit}/click", json={"tool_id": ids["get_forecast"], "rank": 4}, headers=ALICE)
     await verdict(client, hit)
     miss = (await search(client, "tarte aux pommes"))["search_id"]  # no result
     await verdict(client, miss, verdict="not_found", expected=["get_weather"], headers=ALICE)
@@ -259,8 +304,9 @@ async def test_the_statistics_summarise_searches_clicks_and_verdicts(client: Asy
     assert (stats["verdicts"], stats["found_rate"]) == ({"found": 1, "not_found": 1}, 0.5)
     assert stats["dataset"] == {"pending": 2, "approved": 0}
     assert stats["top_zero_result_queries"] == [{"query": "tarte aux pommes", "count": 2}]
-    assert stats["top_missed"] == [{"query": "tarte aux pommes", "expected": ["get_weather"], "count": 1}]
-    assert {"tool": "get_weather", "count": 2} in stats["tools_chosen"]  # one click and one verdict
+    weather = {"id": ids["get_weather"], "name": "get_weather", "source": "weather-api"}
+    assert stats["top_missed"] == [{"query": "tarte aux pommes", "expected": [weather], "count": 1}]
+    assert {"tool": weather, "count": 2} in stats["tools_chosen"]  # one click and one verdict
     assert len(stats["by_day"]) == 8 and stats["by_day"][-1]["searches"] == 3
     assert stats["latency_ms"]["p95"] >= 0
 

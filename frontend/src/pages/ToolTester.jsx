@@ -176,13 +176,13 @@ export default function ToolTester({ tool, open, onClose, initial = null }) {
     const request = isSkill ? { model, arguments: args } : args;
     const started = performance.now();
     try {
-      const response = await callTool(tool.name, args, usedModel);
+      const response = await callTool(tool.id, args, usedModel);
       setOutput({ request, response, ms: response.duration_ms, model: usedModel });
-      addHistory({ tool: tool.name, type: tool.type, args, model: usedModel, ok: response.ok, ms: response.duration_ms });
+      addHistory({ toolId: tool.id, tool: tool.name, type: tool.type, args, model: usedModel, ok: response.ok, ms: response.duration_ms });
     } catch (e) {
       const ms = Math.round(performance.now() - started);
       setOutput({ request, error: e.message, ms, model: usedModel });
-      addHistory({ tool: tool.name, type: tool.type, args, model: usedModel, ok: false, ms });
+      addHistory({ toolId: tool.id, tool: tool.name, type: tool.type, args, model: usedModel, ok: false, ms });
     } finally {
       setRunning(false);
     }

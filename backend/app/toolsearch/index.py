@@ -25,7 +25,7 @@ PREFETCH = 50
 
 @dataclass
 class Hit:
-    name: str
+    tool_id: str
     score: float
     dense_score: float | None  # cosine similarity, None when the tool was not a dense match
 
@@ -99,6 +99,7 @@ class ToolIndex:
 
     def _payload(self, source: Source, tool: Tool, doc_hash: str) -> dict:
         return {
+            "tool_id": tool.id,
             "name": tool.name,
             "source": source.name,
             "source_id": source.id,
@@ -146,13 +147,13 @@ class ToolIndex:
 
     async def index_source(self, source: Source, aliases: dict[str, list[str]] | None = None) -> None:
         """Bring the points of the source in line with its tools. Only the tools whose text changed are embedded again;
-        the others just get their payload (version, role, enabled...) refreshed. `aliases`: tool name -> queries that
+        the others just get their payload (version, role, enabled...) refreshed. `aliases`: tool id -> queries that
         users confirmed it answers."""
         aliases = aliases or {}
         wanted: dict[str, tuple[Tool, str, list[tuple[str, float]], str]] = {}
         for tool in source.tools:
-            text = dense_text(source, tool, aliases.get(tool.name, ()))
-            parts = sparse_parts(source, tool, aliases.get(tool.name, ()))
+            text = dense_text(source, tool, aliases.get(tool.id, ()))
+            parts = sparse_parts(source, tool, aliases.get(tool.id, ()))
             wanted[str(UUID(tool.id))] = (tool, text, parts, self._doc_hash(text, parts))
         indexed = await self._indexed(source.id)
 
@@ -199,11 +200,18 @@ class ToolIndex:
             total += len(source.tools)
         return total
 
-    async def _rank(self, using: str, query, flt: models.Filter) -> list[tuple[str, float]]:
+    async def _rank(self, using: str, query, flt: models.Filter, names: dict[str, str]) -> list[tuple[str, float]]:
+        """(tool id, score) of the best points; `names` collects the name of each tool met."""
         result = await self.client.query_points(
-            self.collection, query=query, using=using, query_filter=flt, limit=PREFETCH, with_payload=["name"]
+            self.collection,
+            query=query,
+            using=using,
+            query_filter=flt,
+            limit=PREFETCH,
+            with_payload=["tool_id", "name"],
         )
-        return [(p.payload["name"], p.score) for p in result.points]
+        names.update({p.payload["tool_id"]: p.payload["name"] for p in result.points})
+        return [(p.payload["tool_id"], p.score) for p in result.points]
 
     async def search(
         self,
@@ -213,8 +221,8 @@ class ToolIndex:
         limit: int,
         only: Literal["keyword", "dense"] | None = None,
     ) -> list[str]:
-        """Names of the best matching tools, best first. `only` restricts the ranking to one kind of vector."""
-        return [hit.name for hit in await self.search_scored(query, roles, filters, limit, only)]
+        """Ids of the best matching tools, best first. `only` restricts the ranking to one kind of vector."""
+        return [hit.tool_id for hit in await self.search_scored(query, roles, filters, limit, only)]
 
     async def search_scored(
         self,
@@ -229,8 +237,9 @@ class ToolIndex:
         settings = self.settings
         flt = build_filter(roles, filters)
         indices, values = encode_query(query)
+        names: dict[str, str] = {}
         keyword = (
-            await self._rank(SPARSE, models.SparseVector(indices=indices, values=values), flt)
+            await self._rank(SPARSE, models.SparseVector(indices=indices, values=values), flt, names)
             if only != "dense"
             else []
         )
@@ -238,22 +247,22 @@ class ToolIndex:
         if self.dense and only != "keyword":
             try:
                 vector = (await embed(settings, [query], kind="query"))[0]
-                dense = await self._rank(DENSE, vector, flt)
+                dense = await self._rank(DENSE, vector, flt, names)
             except EmbeddingError as exc:
                 logger.warning("Dense search skipped: %s", exc)
         if settings.search_min_dense_score is not None:
-            dense = [(n, s) for n, s in dense if s >= settings.search_min_dense_score]
+            dense = [(i, s) for i, s in dense if s >= settings.search_min_dense_score]
 
         scores: dict[str, float] = {}
         k = settings.search_rrf_k
         for weight, ranking in ((settings.search_keyword_weight, keyword), (settings.search_dense_weight, dense)):
-            for rank, (name, _) in enumerate(ranking, start=1):
-                scores[name] = scores.get(name, 0.0) + weight / (k + rank)
+            for rank, (tool_id, _) in enumerate(ranking, start=1):
+                scores[tool_id] = scores.get(tool_id, 0.0) + weight / (k + rank)
         query_words = set(tokenize(query))
-        for name in scores:
-            name_words = set(tokenize(humanize(name)))
+        for tool_id in scores:
+            name_words = set(tokenize(humanize(names[tool_id])))
             if name_words and name_words <= query_words:
-                scores[name] += settings.search_name_bonus
+                scores[tool_id] += settings.search_name_bonus
         dense_scores = dict(dense)
-        ranked = sorted(scores, key=lambda n: -scores[n])[:limit]
-        return [Hit(n, scores[n], dense_scores.get(n)) for n in ranked]
+        ranked = sorted(scores, key=lambda i: -scores[i])[:limit]
+        return [Hit(i, scores[i], dense_scores.get(i)) for i in ranked]

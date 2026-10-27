@@ -58,6 +58,20 @@ def load_sources() -> list[Source]:
     return sources
 
 
+def load_queries(sources: list[Source]) -> list[dict]:
+    """The queries, with the tools they expect as ids: `queries.json` names them (`name`, or `source/name` when
+    several sources have a tool of that name), a dataset exported from the dashboard already has ids."""
+    ids = {}
+    for source in sources:
+        for tool in source.tools:
+            ids[f"{source.name}/{tool.name}"] = tool.id
+            ids.setdefault(tool.name, tool.id)
+    queries = json.loads((HERE / "queries.json").read_text())
+    for item in queries:
+        item["expect"] = [ids.get(e, e) for e in item["expect"]]
+    return queries
+
+
 def fastembed_transport(model_name: str):
     """A stand-in for the embeddings API that runs a local model (development only: `uv run --with fastembed`)."""
     from fastembed import TextEmbedding
@@ -136,9 +150,11 @@ async def main() -> None:
     if args.dense_text != "current":
         index_module.dense_text = DENSE_TEXTS[args.dense_text]
     index = ToolIndex(settings, AsyncQdrantClient(":memory:"))
-    await index.reindex(load_sources())
+    sources = load_sources()
+    await index.reindex(sources)
+    names = {t.id: t.name for source in sources for t in source.tools}
 
-    queries = json.loads((HERE / "queries.json").read_text())
+    queries = load_queries(sources)
     modes = ["keyword", "dense", "hybrid"] if index.dense else ["keyword"]
     totals: dict[str, list[tuple[float, float, float]]] = defaultdict(list)
     by_category: dict[tuple[str, str], list[tuple[float, float, float]]] = defaultdict(list)
@@ -152,7 +168,8 @@ async def main() -> None:
             totals[mode].append(result)
             by_category[(item["category"], mode)].append(result)
             if mode == modes[-1] and result[0] < 1:
-                misses.append(f"  {item['query']!r} -> expected {item['expect']}, got {ranking[:3]}")
+                expected = [names.get(e, e) for e in item["expect"]]
+                misses.append(f"  {item['query']!r} -> expected {expected}, got {[names[r] for r in ranking[:3]]}")
 
     def mean(rows: list[tuple[float, float, float]], i: int) -> float:
         return sum(r[i] for r in rows) / len(rows)
@@ -163,13 +180,13 @@ async def main() -> None:
             flt = item.get("filters", {})
             filters = Filters(flt.get("type"), tuple(flt.get("tags", ())), flt.get("source"), flt.get("version"))
             hits = await index.search_scored(item["query"], ROLES, filters, 10, only="dense")
-            scores = [h.dense_score for h in hits if h.dense_score is not None and h.name in item["expect"]]
+            scores = [h.dense_score for h in hits if h.dense_score is not None and h.tool_id in item["expect"]]
             if item["expect"] and scores:
                 gap["relevant"].append(max(scores))
             elif not item["expect"] and hits:
                 gap["no-answer"].append(max(h.dense_score for h in hits if h.dense_score is not None))
 
-    print(f"{len(queries)} queries, {sum(len(s.tools) for s in load_sources())} tools, embedder: {args.embedder}\n")
+    print(f"{len(queries)} queries, {sum(len(s.tools) for s in sources)} tools, embedder: {args.embedder}\n")
     print(f"{'':16}" + "".join(f"{m:>26}" for m in modes))
     print(f"{'':16}" + "".join(f"{'hit@1':>9}{'hit@3':>9}{'MRR':>8}" for _ in modes))
     for category in dict.fromkeys(i["category"] for i in queries):

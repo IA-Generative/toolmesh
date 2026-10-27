@@ -121,7 +121,7 @@ async def _call_mcp(
         async with asyncio.timeout(settings.execution_timeout_seconds):
             http_client = httpx2.AsyncClient(headers=headers, follow_redirects=False)
             async with http_client, Client(streamable_http_client(source.url, http_client=http_client)) as mcp:
-                result = await mcp.call_tool(tool.remote_name or tool.name, arguments)
+                result = await mcp.call_tool(tool.name, arguments)
     except TimeoutError as exc:
         raise ExecutionError("The MCP server did not answer in time") from exc
     except Exception as exc:
