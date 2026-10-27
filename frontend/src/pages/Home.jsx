@@ -163,13 +163,13 @@ export default function Home() {
       {visible?.length > 0 && (
         <ul className="fr-grid-row fr-grid-row--gutters fr-raw-list">
           {visible.map((t, i) => (
-            <li key={t.name} className="fr-col-12 fr-col-md-6 fr-col-lg-4">
+            <li key={t.id} className="fr-col-12 fr-col-md-6 fr-col-lg-4">
               <ToolCard
                 tool={t}
-                to={`/outils/${encodeURIComponent(t.name)}`}
+                to={`/outils/${encodeURIComponent(t.id)}`}
                 activeTags={activeTags}
                 onTag={toggleTag}
-                onOpen={results?.searchId ? () => sendClick(results.searchId, t.name, i + 1) : undefined}
+                onOpen={results?.searchId ? () => sendClick(results.searchId, t.id, i + 1) : undefined}
               />
             </li>
           ))}

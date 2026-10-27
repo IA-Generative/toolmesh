@@ -30,6 +30,7 @@ export default function ToolCard({ tool, to, activeTags = [], onTag, onOpen, tit
           <div className="fr-card__start">
             <ul className="fr-badges-group">
               <li><Badge as="span" small severity="info" noIcon>{TYPE_LABELS[tool.type] ?? tool.type}</Badge></li>
+              {tool.source && <li><Badge as="span" small noIcon>{tool.source}</Badge></li>}
               {tool.required_role && <li><Badge as="span" small noIcon>Rôle : {tool.required_role}</Badge></li>}
             </ul>
           </div>

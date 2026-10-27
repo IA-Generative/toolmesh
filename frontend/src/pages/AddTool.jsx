@@ -160,7 +160,7 @@ export default function AddTool() {
         />
         <ul className="fr-btns-group fr-btns-group--inline-md fr-mt-3w">
           {first && (
-            <li><Link to={`/outils/${encodeURIComponent(first.name)}`} className="fr-btn">Voir {first.name}</Link></li>
+            <li><Link to={`/outils/${encodeURIComponent(first.id)}`} className="fr-btn">Voir {first.name}</Link></li>
           )}
           <li><Link to="/accueil" className="fr-btn fr-btn--secondary">Retour à mes outils</Link></li>
         </ul>

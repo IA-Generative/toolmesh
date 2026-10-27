@@ -24,7 +24,7 @@ export default function App() {
           <Route path="/accueil" element={<Home />}/>
           <Route path="/recherche/qualite" element={<SearchQuality />}/>
           <Route path="/outils/nouveau" element={<AddTool />}/>
-          <Route path="/outils/:name" element={<ToolDetail />}/>
+          <Route path="/outils/:id" element={<ToolDetail />}/>
         </Route>
       </Routes>
     </>

@@ -10,7 +10,7 @@ import { getHistoryEntry } from "../tools/history";
 import { TYPE_ICONS, TYPE_LABELS } from "../tools/types";
 
 export default function ToolDetail() {
-  const { name } = useParams();
+  const { id } = useParams();
   const [tools, setTools] = useState(null);
   const [error, setError] = useState(null);
   const [testing, setTesting] = useState(false);
@@ -30,7 +30,7 @@ export default function ToolDetail() {
     fetchMyTools().then((d) => setTools(d.tools)).catch((e) => setError(e.message));
   }, []);
 
-  const tool = tools?.find((t) => t.name === name);
+  const tool = tools?.find((t) => t.id === id);
   const back = (
     <p>
       <Link to="/accueil" className="fr-link fr-icon-arrow-left-line fr-link--icon-left">Retour à mes outils</Link>
@@ -50,7 +50,7 @@ export default function ToolDetail() {
     return (
       <div>
         {back}
-        <Alert severity="warning" title="Outil introuvable" description={`Aucun outil « ${name} » n'est disponible pour votre compte.`} />
+        <Alert severity="warning" title="Outil introuvable" description="Cet outil n'existe pas ou n'est pas disponible pour votre compte." />
       </div>
     );
   }
@@ -94,7 +94,7 @@ export default function ToolDetail() {
           Tester
         </Button>
       </header>
-      <ToolTester key={`${tool.name}:${replay?.id ?? ""}`} tool={tool} initial={replay} open={testing || Boolean(replay)} onClose={closeTester} />
+      <ToolTester key={`${tool.id}:${replay?.id ?? ""}`} tool={tool} initial={replay} open={testing || Boolean(replay)} onClose={closeTester} />
 
       <div className="tool-layout">
         <div>

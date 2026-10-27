@@ -6,7 +6,7 @@ const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../d
 const USER = { sub: "1", username: "user", email: "u@x.fr", roles: ["user"] };
 const TOOLS = {
   user: "user", roles: ["user"],
-  tools: [{ name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null }],
+  tools: [{ id: "t1", name: "datetime", description: "Date et heure", source: "mcp", type: "mcp", required_role: null }],
 };
 const VERSION = "1.2.3"; // valeur fictive : les captures restent stables d'une release à l'autre
 

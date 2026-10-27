@@ -45,8 +45,8 @@ export default function SearchFeedback({ searchId, results, allTools }) {
           legend="Quel outil convenait ?"
           small
           options={results.map((t) => ({
-            label: t.name,
-            nativeInputProps: { name: "expected", value: t.name, checked: chosen === t.name, onChange: () => setChosen(t.name) },
+            label: `${t.name} (${t.source})`,
+            nativeInputProps: { name: "expected", value: t.id, checked: chosen === t.id, onChange: () => setChosen(t.id) },
           }))}
         />
       )}
@@ -57,7 +57,7 @@ export default function SearchFeedback({ searchId, results, allTools }) {
           nativeSelectProps={{ value: chosen, onChange: (e) => setChosen(e.target.value) }}
         >
           <option value="">Aucun outil du catalogue ne convient</option>
-          {allTools.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+          {allTools.map((t) => <option key={t.id} value={t.id}>{t.name} ({t.source})</option>)}
         </Select>
       )}
       {answer && (

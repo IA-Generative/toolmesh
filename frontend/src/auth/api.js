@@ -23,7 +23,7 @@ export async function logout() {
 export async function fetchMyTools() {
   const res = await fetch(`${API_URL}/api/me/tools`, { credentials: "include" });
   if (!res.ok) throw new Error(`Erreur ${res.status}`);
-  return res.json(); // { user, roles, tools: [{ name, description, source, type, tags, source_url, source_version, method, path, input_schema, auth_mode, audience, required_role }] }
+  return res.json(); // { user, roles, tools: [{ id, name, description, source, type, tags, source_url, source_version, method, path, input_schema, auth_mode, audience, required_role }] }
 }
 
 export async function fetchVersion(){
@@ -68,8 +68,8 @@ export async function discoverTools(payload) {
 }
 
 // Exécute un outil pour l'utilisateur connecté.
-export async function callTool(name, args, model = null) {
-  const res = await fetch(`${API_URL}/api/me/tools/${encodeURIComponent(name)}/call`, {
+export async function callTool(toolId, args, model = null) {
+  const res = await fetch(`${API_URL}/api/me/tools/${encodeURIComponent(toolId)}/call`, {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
@@ -109,11 +109,11 @@ async function request(path, init = { credentials: "include" }) {
 }
 
 // Un résultat de la recherche a été ouvert : signal implicite que c'était le bon (sans bloquer la navigation).
-export function sendClick(searchId, tool, rank) {
-  fetch(`${API_URL}/api/search/${searchId}/click`, { ...json("POST", { tool, rank }), keepalive: true }).catch(() => {});
+export function sendClick(searchId, toolId, rank) {
+  fetch(`${API_URL}/api/search/${searchId}/click`, { ...json("POST", { tool_id: toolId, rank }), keepalive: true }).catch(() => {});
 }
 
-// verdict : "found" (expected = les outils qui convenaient) ou "not_found" (expected peut être vide).
+// verdict : "found" (expected = les ids des outils qui convenaient) ou "not_found" (expected peut être vide).
 export const sendFeedback = (searchId, { verdict, expected = [], comment = "" }) =>
   request(`/api/search/${searchId}/feedback`, json("POST", { verdict, expected, comment: comment || null }));
 

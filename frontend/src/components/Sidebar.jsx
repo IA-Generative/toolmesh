@@ -64,7 +64,7 @@ export default function Sidebar({ id, open, onNavigate }) {
             {history.map((h) => (
               <li key={h.id}>
                 <Link
-                  to={`/outils/${encodeURIComponent(h.tool)}?replay=${h.id}`}
+                  to={`/outils/${encodeURIComponent(h.toolId)}?replay=${h.id}`}
                   className="app-sidebar__link app-sidebar__entry"
                   onClick={onNavigate}
                 >
