@@ -68,14 +68,12 @@ async def search_my_tools(
     index = get_index(settings) if query else None
     if index is not None:
         try:
-            names = await index.search(query, user.roles, flt, limit)
+            ids = await index.search(query, user.roles, flt, limit)
         except Exception:
             logger.exception("Search index unavailable, falling back to the registry")
         else:
-            by_name = {t.name: t for t in visible}  # the registry decides what the caller may see
-            result = SearchOut(
-                tools=[by_name[n] for n in names if n in by_name], mode="hybrid" if index.dense else "keyword"
-            )
+            by_id = {t.id: t for t in visible}  # the registry decides what the caller may see
+            result = SearchOut(tools=[by_id[i] for i in ids if i in by_id], mode="hybrid" if index.dense else "keyword")
     if result is None:
         tools = filter_tools(visible, query, type, tuple(tag), source, version)[:limit]
         result = SearchOut(tools=tools, mode="basic" if query else "filter")
@@ -87,7 +85,7 @@ async def search_my_tools(
                 query,
                 {k: v for k, v in {"type": type, "tags": list(tag), "source": source, "version": version}.items() if v},
                 result.mode,
-                [t.name for t in result.tools],
+                [t.id for t in result.tools],
                 round((time.perf_counter() - started) * 1000),
             )
         except Exception:
@@ -96,10 +94,10 @@ async def search_my_tools(
     return result
 
 
-@router.get("/me/tools/{name}")
-async def get_my_tool(name: str, user: CurrentUser, db: DB) -> ToolOut:
+@router.get("/me/tools/{tool_id}")
+async def get_my_tool(tool_id: str, user: CurrentUser, db: DB) -> ToolOut:
     for tool in await visible_tools(db, user):
-        if tool.name == name:
+        if tool.id == tool_id:
             return tool
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Tool not found")
 
@@ -118,12 +116,12 @@ class CallOut(BaseModel):
     duration_ms: int
 
 
-@router.post("/me/tools/{name}/call")
+@router.post("/me/tools/{tool_id}/call")
 async def call_my_tool(
-    name: str, payload: CallIn, user: CurrentUser, db: DB, settings: Annotated[Settings, Depends(get_settings)]
+    tool_id: str, payload: CallIn, user: CurrentUser, db: DB, settings: Annotated[Settings, Depends(get_settings)]
 ) -> CallOut:
     """Run a tool with the given arguments, as the caller (token exchange when its source asks for it)."""
-    row = (await db.execute(select(Tool, Source).join(Source).where(Tool.name == name, Tool.enabled))).first()
+    row = (await db.execute(select(Tool, Source).join(Source).where(Tool.id == tool_id, Tool.enabled))).first()
     if row is None or not is_visible(row.Source, user):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Tool not found")
     try:

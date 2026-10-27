@@ -2,12 +2,13 @@ from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.auth.dependencies import get_jwks_client
 from app.config import Settings, get_settings
-from app.db.models import Base
+from app.db.models import Base, Source, Tool
 from app.db.session import get_db
 from app.main import app
 from tests.registry_data import seed_test_registry
@@ -53,3 +54,17 @@ async def client(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIter
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def tool_id(session_factory: async_sessionmaker[AsyncSession]):
+    """`await tool_id("web_search")`: the id of a tool, as the API addresses it (`source=` when the name is shared)."""
+
+    async def find(name: str, source: str | None = None) -> str:
+        query = select(Tool.id).join(Source).where(Tool.name == name)
+        if source:
+            query = query.where(Source.name == source)
+        async with session_factory() as db:
+            return (await db.scalars(query)).one()
+
+    return find

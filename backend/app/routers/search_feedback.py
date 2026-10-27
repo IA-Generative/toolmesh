@@ -30,13 +30,13 @@ def _fail(exc: searchlog.FeedbackError) -> HTTPException:
 
 
 class ClickIn(BaseModel):
-    tool: str = Field(max_length=100)
+    tool_id: str = Field(max_length=32)
     rank: int = Field(ge=1, le=100)
 
 
 class FeedbackIn(BaseModel):
     verdict: Literal["found", "not_found"]
-    # The tools that were the right answer. With `not_found`, empty means the catalogue has nothing for this query.
+    # Ids of the tools that were the right answer. With `not_found`, empty means the catalogue has nothing for it.
     expected: list[str] = Field(default=[], max_length=10)
     comment: str | None = Field(default=None, max_length=1000)
 
@@ -54,7 +54,7 @@ class FeedbackOut(BaseModel):
 async def click(search_id: str, payload: ClickIn, user: CurrentUser, db: DB) -> Response:
     """A result of the search was opened."""
     try:
-        await searchlog.record_click(db, search_id, user.sub, payload.tool, payload.rank)
+        await searchlog.record_click(db, search_id, user.sub, payload.tool_id, payload.rank)
     except searchlog.FeedbackError as exc:
         raise _fail(exc) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -85,15 +85,21 @@ async def stats(db: DB, days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict[
     return await searchlog.stats(db, days)
 
 
+class ToolRef(BaseModel):
+    id: str
+    name: str
+    source: str | None  # None: the tool was deleted since
+
+
 class ReviewItem(BaseModel):
     id: str
     created_at: datetime
     query: str
     filters: dict[str, Any]
     mode: str
-    results: list[str]
+    results: list[ToolRef]
     verdict: str
-    expected: list[str]
+    expected: list[str]  # tool ids
     comment: str | None
     status: str
 
@@ -111,6 +117,8 @@ async def list_feedback(
         .order_by(SearchFeedback.created_at.desc())
         .limit(limit)
     )
+    rows = rows.all()
+    refs = await searchlog.tool_refs(db, {i for _, e in rows for i in e.results})
     return [
         ReviewItem(
             id=f.id,
@@ -118,13 +126,13 @@ async def list_feedback(
             query=e.query,
             filters=e.filters,
             mode=e.mode,
-            results=e.results,
+            results=[ToolRef(**refs[i]) for i in e.results],
             verdict=f.verdict,
             expected=f.expected,
             comment=f.comment,
             status=f.status,
         )
-        for f, e in rows.all()
+        for f, e in rows
     ]
 
 
@@ -142,7 +150,7 @@ async def review(feedback_id: str, payload: ReviewIn, user: CurrentUser, db: DB,
     except searchlog.FeedbackError as exc:
         raise _fail(exc) from exc
     if touched and get_index(settings) is not None:  # the aliases of these tools changed: index them again
-        owners = select(Tool.source_id).where(Tool.name.in_(touched))  # no DISTINCT on the rows: JSON has no equality
+        owners = select(Tool.source_id).where(Tool.id.in_(touched))  # no DISTINCT on the rows: JSON has no equality
         sources = (await db.scalars(select(Source).where(Source.id.in_(owners)))).all()
         for source in sources:
             await sync_source_with_feedback(settings, db, source)

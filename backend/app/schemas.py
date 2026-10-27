@@ -16,8 +16,6 @@ class ToolIn(BaseModel):
     method: str | None = None
     path: str | None = None
     input_schema: dict[str, Any] | None = None
-    # Name on the server when `name` was changed to be unique; set by the discovery, not by clients.
-    remote_name: str | None = None
 
 
 class SourceIn(BaseModel):
@@ -65,6 +63,7 @@ class SourceIn(BaseModel):
 class ToolOut(BaseModel):
     """A tool as listed to a caller (flattened with its source)."""
 
+    id: str
     name: str
     description: str
     source: str
@@ -85,6 +84,7 @@ class ToolOut(BaseModel):
 class SourceToolOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    id: str
     name: str
     description: str
     tags: list[str]

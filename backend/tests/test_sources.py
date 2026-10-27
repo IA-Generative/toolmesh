@@ -51,9 +51,10 @@ async def test_create_api_source_exposes_its_tools(client: AsyncClient) -> None:
     assert body["created_by"] == "u1"
     assert [t["name"] for t in body["tools"]] == ["list_orders"]
 
-    detail = await client.get("/api/me/tools/list_orders", headers=user())
+    detail = await client.get(f"/api/me/tools/{body['tools'][0]['id']}", headers=user())
     assert detail.status_code == 200
     assert detail.json() | {"input_schema": None} == {
+        "id": body["tools"][0]["id"],
         "name": "list_orders",
         "description": "List the orders",
         "source": "orders-api",
@@ -78,7 +79,8 @@ async def test_skill_becomes_a_single_tool_and_needs_a_description(client: Async
         client, {"name": "rewrite", "type": "skill", "description": "Rewrite a text", "tags": ["texte"]}
     )
     assert created.status_code == 201
-    tool = (await client.get("/api/me/tools/rewrite", headers=user())).json()
+    tool_id = created.json()["tools"][0]["id"]
+    tool = (await client.get(f"/api/me/tools/{tool_id}", headers=user())).json()
     assert (tool["type"], tool["description"], tool["tags"], tool["source_url"]) == (
         "skill",
         "Rewrite a text",
@@ -106,9 +108,10 @@ async def test_duplicate_names_are_rejected(client: AsyncClient) -> None:
     assert (await create(client, API_SOURCE)).status_code == 201
 
     assert (await create(client, API_SOURCE)).status_code == 409
-    clash = API_SOURCE | {"name": "other-api"}  # same tool name `list_orders`
-    assert (await create(client, clash)).status_code == 409
-    assert (await create(client, {"name": "web_search", "type": "skill", "description": "x"})).status_code == 409
+    twice = API_SOURCE | {"name": "other-api", "tools": [{"name": "t"}, {"name": "t"}]}
+    assert (await create(client, twice)).status_code == 409  # a tool name is unique within its source...
+    assert (await create(client, API_SOURCE | {"name": "other-api"})).status_code == 201  # ...not across sources
+    assert (await create(client, {"name": "web_search", "type": "skill", "description": "x"})).status_code == 201
 
 
 async def test_public_source_drops_the_audience(client: AsyncClient) -> None:
@@ -122,17 +125,20 @@ async def test_role_restricted_sources_are_hidden(client: AsyncClient) -> None:
     source_id = created.json()["id"]
 
     assert (await client.get(f"/api/sources/{source_id}", headers=user())).status_code == 404
-    assert (await client.get("/api/me/tools/list_orders", headers=user())).status_code == 404
+    tool_id = created.json()["tools"][0]["id"]
+    assert (await client.get(f"/api/me/tools/{tool_id}", headers=user())).status_code == 404
     assert (await client.get(f"/api/sources/{source_id}", headers=user("a", ("admin",)))).status_code == 200
     assert source_id not in {s["id"] for s in (await client.get("/api/sources", headers=user())).json()}
 
 
 async def test_only_creator_or_admin_can_delete(client: AsyncClient) -> None:
-    source_id = (await create(client, API_SOURCE)).json()["id"]
+    created = (await create(client, API_SOURCE)).json()
+    source_id, tool_id = created["id"], created["tools"][0]["id"]
 
     assert (await client.delete(f"/api/sources/{source_id}", headers=user("someone-else"))).status_code == 403
+    assert (await client.get(f"/api/me/tools/{tool_id}", headers=user())).status_code == 200
     assert (await client.delete(f"/api/sources/{source_id}", headers=user("u1"))).status_code == 204
-    assert (await client.get("/api/me/tools/list_orders", headers=user())).status_code == 404
+    assert (await client.get(f"/api/me/tools/{tool_id}", headers=user())).status_code == 404
 
     again = (await create(client, API_SOURCE)).json()["id"]
     assert (await client.delete(f"/api/sources/{again}", headers=user("boss", ("admin",)))).status_code == 204

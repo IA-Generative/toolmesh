@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from typing import Any
+from uuid import UUID
 
 import httpx
 import pytest
@@ -159,27 +160,37 @@ async def index(request: pytest.FixtureRequest, loaded: list[Source], fake_embed
 ALL = ["user", "admin"]
 
 
+async def found(idx: ToolIndex, *args: Any, **kwargs: Any) -> list[str]:
+    """What `idx.search` finds (tool ids), as tool names, to read the assertions."""
+    ids = await idx.search(*args, **kwargs)
+    if not ids:
+        return []
+    points = await idx.client.retrieve(idx.collection, [str(UUID(i)) for i in ids], with_payload=["tool_id", "name"])
+    names = {p.payload["tool_id"]: p.payload["name"] for p in points}
+    return [names[i] for i in ids]
+
+
 async def test_the_best_match_comes_first(index: ToolIndex) -> None:
-    assert (await index.search("search the web", ALL, Filters(), 5))[0] == "web_search"
-    assert (await index.search("météo ville", ALL, Filters(), 5))[0] in {"get_weather", "get_forecast"}
+    assert (await found(index, "search the web", ALL, Filters(), 5))[0] == "web_search"
+    assert (await found(index, "météo ville", ALL, Filters(), 5))[0] in {"get_weather", "get_forecast"}
 
 
 async def test_filters_narrow_the_results(index: ToolIndex) -> None:
-    api = await index.search("web météo", ALL, Filters(type="api"), 10)
+    api = await found(index, "web météo", ALL, Filters(type="api"), 10)
     assert api and {"web_search", "fetch_page"}.isdisjoint(api)
 
-    assert await index.search("météo", ALL, Filters(tags=("données", "météo")), 10)
-    assert await index.search("météo", ALL, Filters(tags=("nope",)), 10) == []
-    assert await index.search("météo", ALL, Filters(source="weather-api"), 10)
+    assert await found(index, "météo", ALL, Filters(tags=("données", "météo")), 10)
+    assert await found(index, "météo", ALL, Filters(tags=("nope",)), 10) == []
+    assert await found(index, "météo", ALL, Filters(source="weather-api"), 10)
     # keywords alone find nothing there; with embeddings the nearest tools of the source come back, but only those
-    assert set(await index.search("météo", ALL, Filters(source="search-mcp"), 10)) <= {"web_search", "fetch_page"}
-    assert await index.search("météo", ALL, Filters(version="9"), 10) == []
+    assert set(await found(index, "météo", ALL, Filters(source="search-mcp"), 10)) <= {"web_search", "fetch_page"}
+    assert await found(index, "météo", ALL, Filters(version="9"), 10) == []
 
 
 async def test_restricted_tools_are_only_found_with_the_role(index: ToolIndex) -> None:
-    assert "query_database" in await index.search("sql", ["user", "admin"], Filters(), 10)
-    assert "query_database" not in await index.search("sql", ["user"], Filters(), 10)
-    assert "query_database" not in await index.search("sql", [], Filters(), 10)
+    assert "query_database" in await found(index, "sql", ["user", "admin"], Filters(), 10)
+    assert "query_database" not in await found(index, "sql", ["user"], Filters(), 10)
+    assert "query_database" not in await found(index, "sql", [], Filters(), 10)
 
 
 async def test_reindexing_one_source_replaces_its_points(
@@ -189,11 +200,11 @@ async def test_reindexing_one_source_replaces_its_points(
     source.tools[:] = [t for t in source.tools if t.name == "get_weather"]
     await index.index_source(source)
 
-    assert "get_forecast" not in await index.search("météo", ALL, Filters(), 10)
-    assert "get_weather" in await index.search("météo", ALL, Filters(), 10)
+    assert "get_forecast" not in await found(index, "météo", ALL, Filters(), 10)
+    assert "get_weather" in await found(index, "météo", ALL, Filters(), 10)
 
     await index.delete_source(source.id)
-    assert {"get_weather", "get_forecast"}.isdisjoint(await index.search("météo", ALL, Filters(), 10))
+    assert {"get_weather", "get_forecast"}.isdisjoint(await found(index, "météo", ALL, Filters(), 10))
 
 
 async def test_disabled_tools_are_not_found(loaded: list[Source], fake_embed: list[list[str]]) -> None:
@@ -201,7 +212,7 @@ async def test_disabled_tools_are_not_found(loaded: list[Source], fake_embed: li
     idx = index_for(dense=False)
     await idx.reindex(loaded)
 
-    assert "get_forecast" not in await idx.search("météo", ALL, Filters(), 10)
+    assert "get_forecast" not in await found(idx, "météo", ALL, Filters(), 10)
 
 
 async def test_the_dense_vector_finds_what_keywords_miss(loaded: list[Source], fake_embed: list[list[str]]) -> None:
@@ -210,9 +221,9 @@ async def test_the_dense_vector_finds_what_keywords_miss(loaded: list[Source], f
     await hybrid.reindex(loaded)
 
     # "internet" is nowhere in the tools: only the embedding (here: the word "web" folded into the query) can link it
-    assert await keyword.search("internet", ALL, Filters(), 3) == []
+    assert await found(keyword, "internet", ALL, Filters(), 3) == []
     query = "web internet"
-    assert "web_search" in await hybrid.search(query, ALL, Filters(), 3)
+    assert "web_search" in await found(hybrid, query, ALL, Filters(), 3)
 
 
 async def test_hybrid_search_survives_an_embedding_outage(
@@ -226,7 +237,7 @@ async def test_hybrid_search_survives_an_embedding_outage(
 
     monkeypatch.setattr("app.toolsearch.index.embed", down)
 
-    assert (await idx.search("web", ALL, Filters(), 5))[0] in {"web_search", "fetch_page"}
+    assert (await found(idx, "web", ALL, Filters(), 5))[0] in {"web_search", "fetch_page"}
 
 
 # --- Route ---------------------------------------------------------------------------------------------------------
@@ -268,11 +279,13 @@ async def test_search_route_applies_filters_and_limit(client: AsyncClient, with_
 
 
 async def test_search_route_never_leaks_a_restricted_tool(
-    client: AsyncClient, with_index: ToolIndex, monkeypatch: pytest.MonkeyPatch
+    client: AsyncClient, with_index: ToolIndex, monkeypatch: pytest.MonkeyPatch, tool_id
 ) -> None:
     # An index that is wrong (stale, or filtering badly) must not widen what the caller sees.
+    both = [await tool_id("query_database"), await tool_id("web_search")]
+
     async def everything(*_: Any) -> list[str]:
-        return ["query_database", "web_search"]
+        return both
 
     monkeypatch.setattr(with_index, "search", everything)
 
@@ -336,10 +349,10 @@ async def test_creating_refreshing_and_deleting_a_source_updates_the_index(
     }
 
     created = await client.post("/api/sources", json=body, headers=user)
-    assert "list_orders" in await idx.search("orders", ALL, Filters(), 5)
+    assert "list_orders" in await found(idx, "orders", ALL, Filters(), 5)
 
     await client.delete(f"/api/sources/{created.json()['id']}", headers=user)
-    assert await idx.search("orders", ALL, Filters(), 5) == []
+    assert await found(idx, "orders", ALL, Filters(), 5) == []
 
 
 async def test_an_index_failure_does_not_break_the_registry(
@@ -375,7 +388,7 @@ async def test_reindex_is_for_admins_and_needs_an_index(
 
     assert response.status_code == 200
     assert response.json()["tools"] == 7
-    assert "web_search" in await idx.search("web", ALL, Filters(), 5)
+    assert "web_search" in await found(idx, "web", ALL, Filters(), 5)
 
 
 async def test_queries_and_documents_get_their_own_prefix() -> None:
@@ -453,8 +466,8 @@ async def test_a_tool_whose_whole_name_is_in_the_query_comes_first(loaded: list[
     idx = index_for(dense=False)
     await idx.reindex(loaded)
 
-    assert (await idx.search("get weather", ALL, Filters(), 5))[0] == "get_weather"
-    assert (await idx.search("I want the web_search tool", ALL, Filters(), 5))[0] == "web_search"
+    assert (await found(idx, "get weather", ALL, Filters(), 5))[0] == "get_weather"
+    assert (await found(idx, "I want the web_search tool", ALL, Filters(), 5))[0] == "web_search"
 
 
 async def test_weak_dense_matches_can_be_dropped(loaded: list[Source], fake_embed: list[list[str]]) -> None:
@@ -494,8 +507,8 @@ async def test_only_changed_tools_are_embedded_again(loaded: list[Source], fake_
     source.required_role = "admin"  # payload only: no new embedding, but the filters follow
     await idx.index_source(source)
     assert fake_embed == []
-    assert "get_weather" not in await idx.search("météo", ["user"], Filters(), 10)
-    assert await idx.search("météo", ["admin"], Filters(version="9.9"), 10)
+    assert "get_weather" not in await found(idx, "météo", ["user"], Filters(), 10)
+    assert await found(idx, "météo", ["admin"], Filters(version="9.9"), 10)
 
 
 async def test_a_change_of_embeddings_rebuilds_the_collection(

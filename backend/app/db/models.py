@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -47,18 +47,17 @@ class Source(Base):
 
 class Tool(Base):
     __tablename__ = "tools"
+    # A tool is addressed by its id; its name only has to be unique within its source.
+    __table_args__ = (UniqueConstraint("source_id", "name", name="uq_tools_source_id_name"),)
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_new_id)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id", ondelete="CASCADE"), index=True)
-    # Unique across sources: the name is how the front addresses a tool.
-    name: Mapped[str] = mapped_column(String(100), unique=True)
+    name: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(Text, default="")
     tags: Mapped[list[str]] = mapped_column(JSON, default=list)
     method: Mapped[str | None] = mapped_column(String(10))
     path: Mapped[str | None] = mapped_column(String(2048))
     input_schema: Mapped[dict | None] = mapped_column(JSON)
-    # Name the tool has on its server when it was renamed here to stay unique (`<source>.<tool>`); None otherwise.
-    remote_name: Mapped[str | None] = mapped_column(String(100))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
 
     source: Mapped[Source] = relationship(back_populates="tools")
