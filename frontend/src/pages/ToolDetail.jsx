@@ -114,7 +114,7 @@ export default function ToolDetail() {
 
           <section className="tool-panel" aria-labelledby="tool-origin">
             <h2 id="tool-origin" className="tool-panel__title">Origine</h2>
-            <ol className="tool-origin">
+            <ol className="tool-origin fr-raw-list">
               <li className="tool-origin__node">
                 <span className="tool-origin__label">{sourceLabel}</span>
                 <strong>{tool.source}</strong>
