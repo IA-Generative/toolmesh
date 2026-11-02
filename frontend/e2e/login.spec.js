@@ -208,10 +208,11 @@ test.describe("mobile", () => {
   });
 });
 
-test("accessibilité : aucune violation sur /accueil", async ({ page }) => {
+test("accessibilité : aucune violation sur /accueil et pas de violation d'accessibilité avec les filtres", async ({ page }) => {
   await asUserWithTools(page);
   await page.goto("/accueil");
   await page.getByText("datetime").waitFor();
+  await expect(page.getByRole("region", { name: "Filtrer les outils" })).toBeVisible();
   const results = await new AxeBuilder({ page }).analyze();
   expect(results.violations).toEqual([]);
 });

@@ -4,9 +4,10 @@ import Alert from "@codegouvfr/react-dsfr/Alert";
 import { useAuth } from "../auth/AuthContext";
 import { fetchMyTools, searchTools, sendClick } from "../auth/api";
 
-import { TYPE_LABELS } from "../tools/types";
 import SearchFeedback from "../tools/SearchFeedback";
-import ToolCard, { FilterTag } from "../tools/ToolCard";
+import ToolCard from "../tools/ToolCard";
+import ToolFilters from "../tools/ToolFilters";
+import "./Home.css";
 
 
 const MODE_HINTS = {
@@ -102,53 +103,23 @@ export default function Home() {
 
       {tools?.length > 0 && (
         <>
-          <section aria-label="Filtres" className="fr-mb-3w">
-            <p className="fr-text--sm fr-text--bold fr-mb-1w" id="filtre-type">Type</p>
-            <ul className="fr-tags-group" aria-labelledby="filtre-type">
-              {allTypes.map((type) => (
-                <li key={type}>
-                  <FilterTag label={TYPE_LABELS[type] ?? type} pressed={activeType === type} onClick={() => toggleType(type)} />
-                </li>
-              ))}
-            </ul>
-            {allVersions.length > 0 && (
-              <>
-                <p className="fr-text--sm fr-text--bold fr-mb-1w fr-mt-2w" id="filtre-version">Version</p>
-                <ul className="fr-tags-group" aria-labelledby="filtre-version">
-                  {allVersions.map((v) => (
-                    <li key={v}>
-                      <FilterTag label={v} pressed={activeVersion === v} onClick={() => toggleVersion(v)} />
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {allTags.length > 0 && (
-              <>
-                <p className="fr-text--sm fr-text--bold fr-mb-1w fr-mt-2w" id="filtre-tags">Tags</p>
-                <ul className="fr-tags-group" aria-labelledby="filtre-tags">
-                  {allTags.map((tag) => (
-                    <li key={tag}>
-                      <FilterTag label={tag} pressed={activeTags.includes(tag)} onClick={() => toggleTag(tag)} />
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <div className="fr-mt-2w" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-              <p className="fr-text--sm fr-mb-0" role="status">
-                {visible
-                  ? `${visible.length} outil${visible.length > 1 ? "s" : ""} sur ${tools.length}`
-                  : "Recherche en cours…"}
-                {searching && results && MODE_HINTS[results.mode] ? `. ${MODE_HINTS[results.mode]}` : ""}
-              </p>
-              {filtered && (
-                <button type="button" className="fr-btn fr-btn--tertiary-no-outline fr-btn--sm" onClick={reset}>
-                  Réinitialiser les filtres
-                </button>
-              )}
-            </div>
-          </section>
+          <ToolFilters
+            types={allTypes}
+            versions={allVersions}
+            tags={allTags}
+            active={{ type: activeType, version: activeVersion, tags: activeTags}}
+            onType={toggleType}
+            onVersion={toggleVersion}
+            onTag={toggleTag}
+            count={visible?.length}
+            total={tools.length}
+            filtered={filtered}
+            onReset={reset}
+          />
+
+          {searching && results && MODE_HINTS[results.mode] && (
+            <p className="fr-text--sm">{MODE_HINTS[results.mode]}</p>
+          )}
 
           {results?.searchId && (
             <SearchFeedback key={results.searchId} searchId={results.searchId} results={results.tools} allTools={tools} />
