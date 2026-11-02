@@ -158,6 +158,8 @@ test("recherche : la modale filtre les outils", async ({ page }) => {
 
 test("recherche sans résultat : affiche un message", async ({ page }) => {
   await asUserWithTools(page);
+  await page.route("**/api/me/tools/search**", (r) =>
+    r.fulfill({ json: { tools: [], mode: "keyword", search_id: null } }));
   await page.goto("/accueil?q=zzz");
   await expect(page.getByText("Aucun résultat")).toBeVisible();
 });
