@@ -1,11 +1,14 @@
-.home-filters{
-    background: var(--background-alt-grey);
-    border-radius: 0.5rem;
+.home-filters {
+  background: var(--background-default-grey);
+  border: 1px solid var(--border-default-grey);
+  border-left: 0.25rem solid var(--border-plain-blue-france);
+  border-radius: 0.5rem;
 }
-.home-filters_footer {
-    display: flex;
-    align-items: center;
-    justify-self: space-between;
-    flex-wrap: wrap;
-    gap: 1rem;
+
+.home-filters__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
