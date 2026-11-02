@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.1-rc](https://github.com/IA-Generative/toolmesh/compare/v0.13.0...v0.13.1-rc) (2026-11-02)
+
+
+### Bug Fixes
+
+* **front:** remove the 1. 2. 3. markers from the origin chain on the tool page ([98510c6](https://github.com/IA-Generative/toolmesh/commit/98510c6320475cacf38ff525c6947ca6e72d4c25))
+
 ## [0.13.0](https://github.com/IA-Generative/toolmesh/compare/v0.12.0...v0.13.0) (2026-10-26)
 
 

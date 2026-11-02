@@ -1,6 +1,6 @@
 [project]
 name = "toolmesh-mcp-search"
-version = "0.13.0"
+version = "0.13.1-rc"
 description = "Standalone MCP server for web search (SearXNG) and page reading"
 requires-python = ">=3.12"
 dependencies = [
