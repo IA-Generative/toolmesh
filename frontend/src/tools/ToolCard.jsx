@@ -4,7 +4,7 @@ import { TYPE_ICONS, TYPE_LABELS } from "./types";
 
 export function FilterTag({ label, pressed, onClick }) {
   return (
-    <button type="button" className="fr-tag" aria-pressed={pressed} onClick={onClick}>
+    <button type="button" className={`fr-tag${pressed ? " fr-icon-check-line fr-tag--icon-left" : ""}`} aria-pressed={pressed} onClick={onClick}>
       {label}
     </button>
   );
